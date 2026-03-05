@@ -68,6 +68,27 @@ function normalizeUrl(url) {
   } catch { return url; }
 }
 
+// ── First-run file init ────────────────────────────────────────────────────
+function initScraperFiles() {
+  const scraperDir = path.dirname(BUNDLED_SCRAPER);
+  const defaults = {
+    'seen_links.json':       [],
+    'cookie_store.json':     {},
+    'browser_profiles.json': {}
+  };
+
+  for (const [filename, emptyVal] of Object.entries(defaults)) {
+    const filePath = path.join(scraperDir, filename);
+    if (!fs.existsSync(filePath)) {
+      try {
+        fs.writeFileSync(filePath, JSON.stringify(emptyVal, null, 2));
+      } catch (err) {
+        sendLog('error', `Failed to init ${filename}: ${err.message}`);
+      }
+    }
+  }
+}
+
 // ── Port finder ────────────────────────────────────────────────────────────
 function isPortFree(port) {
   return new Promise(resolve => {
@@ -205,7 +226,6 @@ async function scrapeUrl(urlEntry, opts = {}) {
   if (filters.length > 0) {
     const includeTerms = filters.filter(f => !f.exclude).map(f => f.text.toLowerCase());
     if (includeTerms.length > 0) {
-      // FIX: check both link text AND URL, matching what the test preview shows
       filtered = allLinks.filter(link => {
         const title = (link.text || '').toLowerCase();
         const href  = (link.url  || '').toLowerCase();
@@ -449,6 +469,6 @@ function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
-app.whenReady().then(() => { loadAll(); createWindow(); });
+app.whenReady().then(() => { loadAll(); initScraperFiles(); createWindow(); });
 app.on('window-all-closed', () => { stopScraperServer(); if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (!mainWindow) createWindow(); });

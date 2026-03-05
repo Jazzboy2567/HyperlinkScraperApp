@@ -1,1 +1,27 @@
-node_modules
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+release/
+
+# Electron user data
+scraper/seen_links.json
+scraper/cookie_store.json
+scraper/browser_profiles.json
+
+# Puppeteer chromium
+.local-chromium/
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
