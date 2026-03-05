@@ -18,29 +18,26 @@
   "build": {
     "appId": "com.linkwatch.app",
     "productName": "LinkWatch",
+    "asar": false,
     "directories": {
       "output": "dist"
     },
     "files": [
       "main.js",
       "preload.js",
-      "src/**/*"
+      "src/**/*",
+      "scraper/**/*",
+      "node_modules/**/*"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": [
-        "dmg"
-      ]
+      "target": ["dmg"]
     },
     "win": {
-      "target": [
-        "nsis"
-      ]
+      "target": ["nsis"]
     },
     "linux": {
-      "target": [
-        "AppImage"
-      ]
+      "target": ["AppImage"]
     }
   },
   "author": "",
