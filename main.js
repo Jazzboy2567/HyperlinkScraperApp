@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, Notification, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const http = require('http');
 const net = require('net');
 const { spawn } = require('child_process');
@@ -87,6 +88,70 @@ function initScraperFiles() {
       }
     }
   }
+}
+
+// ── Chromium installer ─────────────────────────────────────────────────────
+async function ensureChromium() {
+  let puppeteer;
+  try {
+    puppeteer = require('puppeteer');
+  } catch {
+    sendLog('error', 'Puppeteer module not found');
+    return;
+  }
+
+  let execPath;
+  try { execPath = puppeteer.executablePath(); } catch { execPath = null; }
+
+  if (execPath && fs.existsSync(execPath)) {
+    sendLog('info', 'Chromium already installed.');
+    return;
+  }
+
+  sendLog('info', 'First run: downloading Chromium (this may take a few minutes)...');
+  mainWindow?.webContents.send('server-status', 'downloading-chromium');
+
+  return new Promise((resolve) => {
+    let installScript;
+    try {
+      // Resolves to the actual puppeteer package directory
+      const puppeteerPkgDir = path.dirname(require.resolve('puppeteer/package.json'));
+      installScript = path.join(puppeteerPkgDir, 'install.mjs');
+    } catch (err) {
+      sendLog('error', `Could not locate puppeteer install script: ${err.message}`);
+      return resolve();
+    }
+
+    if (!fs.existsSync(installScript)) {
+      sendLog('error', `Puppeteer install script not found at: ${installScript}`);
+      return resolve();
+    }
+
+    sendLog('info', `Running: node ${installScript}`);
+
+    const proc = spawn('node', [installScript], {
+      env: { ...process.env, PUPPETEER_CACHE_DIR: path.join(os.homedir(), '.cache', 'puppeteer') },
+      cwd: path.dirname(installScript)
+    });
+
+    proc.stdout.on('data', d => {
+      const msg = d.toString().trim();
+      if (msg) sendLog('info', `[Chromium] ${msg}`);
+    });
+    proc.stderr.on('data', d => {
+      const msg = d.toString().trim();
+      if (msg) sendLog('info', `[Chromium] ${msg}`);
+    });
+    proc.on('close', code => {
+      if (code === 0) sendLog('info', 'Chromium installed successfully.');
+      else sendLog('error', `Chromium install exited with code ${code}`);
+      resolve();
+    });
+    proc.on('error', err => {
+      sendLog('error', `Chromium install process error: ${err.message}`);
+      resolve();
+    });
+  });
 }
 
 // ── Port finder ────────────────────────────────────────────────────────────
@@ -462,8 +527,9 @@ function createWindow() {
   });
   Menu.setApplicationMenu(null);
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
-  mainWindow.once('ready-to-show', () => {
+  mainWindow.once('ready-to-show', async () => {
     mainWindow.show();
+    await ensureChromium();
     startScraperServer();
   });
   mainWindow.on('closed', () => { mainWindow = null; });
