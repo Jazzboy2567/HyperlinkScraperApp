@@ -1,0 +1,2020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinkWatch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Bebas+Neue&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════
+   ROOT & RESET
+═══════════════════════════════════════════════ */
+:root {
+  --bg0: #08080d;
+  --bg1: #0e0e15;
+  --bg2: #14141e;
+  --bg3: #1c1c2a;
+  --bg4: #252536;
+  --line: #2e2e42;
+  --line2: #40405c;
+  --acc: #e8ff47;
+  --acc2: #ff5566;
+  --acc3: #4dd0ff;
+  --acc4: #7fff9a;
+  --txt: #eeeef5;
+  --txt2: #c0c0dd;
+  --txt3: #8888aa;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-sans: 'IBM Plex Sans', sans-serif;
+  --font-display: 'Bebas Neue', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg0);
+  color: var(--txt);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+}
+button { font-family: var(--font-mono); cursor: pointer; }
+input { font-family: var(--font-mono); }
+a { color: var(--acc3); text-decoration: none; }
+a:hover { text-decoration: underline; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg1); }
+::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 5px; border: 2px solid var(--bg1); }
+::-webkit-scrollbar-thumb:hover { background: var(--txt3); }
+
+/* ═══════════════════════════════════════════════
+   TITLEBAR
+═══════════════════════════════════════════════ */
+.titlebar {
+  height: 44px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 0 0 20px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  position: relative;
+}
+.title-logo {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: var(--acc);
+  -webkit-app-region: no-drag;
+}
+.title-logo span { color: var(--txt2); }
+.titlebar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 16px;
+  -webkit-app-region: no-drag;
+}
+.server-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  background: var(--bg2);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.server-pill:hover { border-color: var(--line2); color: var(--txt2); }
+.server-pill.running { border-color: rgba(168,255,120,0.3); color: var(--acc4); }
+.server-pill.starting { border-color: rgba(255,200,50,0.3); color: #ffc832; }
+.server-pill.error { border-color: rgba(255,71,87,0.3); color: var(--acc2); }
+.s-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--txt3); flex-shrink: 0; }
+.server-pill.running .s-dot { background: var(--acc4); box-shadow: 0 0 6px var(--acc4); }
+.server-pill.starting .s-dot { background: #ffc832; animation: blink 1s ease-in-out infinite; }
+.server-pill.error .s-dot { background: var(--acc2); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* ═══════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════ */
+.app { flex: 1; display: flex; overflow: hidden; }
+.sidebar {
+  width: 52px;
+  background: var(--bg1);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.nav-item {
+  width: 38px; height: 38px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--txt3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s;
+  position: relative;
+}
+.nav-item:hover { background: var(--bg3); color: var(--txt2); }
+.nav-item.active { background: rgba(232,255,71,0.08); color: var(--acc); }
+.nav-item.active::after {
+  content: '';
+  position: absolute;
+  right: -7px; top: 20%; bottom: 20%;
+  width: 2px;
+  background: var(--acc);
+  border-radius: 1px 0 0 1px;
+}
+.nav-item svg { width: 16px; height: 16px; }
+.nav-spacer { flex: 1; }
+.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ═══════════════════════════════════════════════
+   PANELS
+═══════════════════════════════════════════════ */
+.panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.panel.active { display: flex; }
+.panel-head {
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 12px;
+  flex-shrink: 0;
+  background: var(--bg1);
+}
+.panel-title { font-family: var(--font-display); font-size: 18px; letter-spacing: 1.5px; color: var(--txt); }
+.panel-head-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* ═══════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════ */
+.btn {
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--line2);
+  background: var(--bg3);
+  color: var(--txt2);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all 0.12s;
+  display: inline-flex; align-items: center; gap: 5px;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg4); color: var(--txt); border-color: var(--line2); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-acc { background: var(--acc); color: #000; border-color: var(--acc); font-weight: 600; }
+.btn-acc:hover { background: #f5ff70; border-color: #f5ff70; color: #000; }
+.btn-danger { background: rgba(255,71,87,0.1); color: var(--acc2); border-color: rgba(255,71,87,0.25); }
+.btn-danger:hover { background: rgba(255,71,87,0.2); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--txt3); }
+.btn-ghost:hover { color: var(--txt2); background: var(--bg3); }
+.btn-sm { padding: 3px 8px; font-size: 10px; }
+.btn-run { background: rgba(232,255,71,0.08); color: var(--acc); border-color: rgba(232,255,71,0.2); }
+.btn-run:hover { background: rgba(232,255,71,0.15); }
+
+/* ═══════════════════════════════════════════════
+   INPUTS
+═══════════════════════════════════════════════ */
+.inp {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: var(--txt);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.12s;
+}
+.inp:focus { border-color: rgba(232,255,71,0.4); }
+.inp::placeholder { color: var(--txt3); }
+.inp-sm { padding: 4px 8px; font-size: 11px; }
+
+/* ═══════════════════════════════════════════════
+   TOGGLE
+═══════════════════════════════════════════════ */
+.toggle {
+  width: 32px; height: 17px;
+  border-radius: 9px;
+  background: var(--bg4);
+  border: 1px solid var(--line2);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s;
+}
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: var(--txt3);
+  top: 2px; left: 2px;
+  transition: left 0.2s, background 0.2s;
+}
+.toggle.on { background: rgba(232,255,71,0.15); border-color: rgba(232,255,71,0.4); }
+.toggle.on::after { left: 17px; background: var(--acc); }
+
+/* ═══════════════════════════════════════════════
+   RESULTS PANEL
+═══════════════════════════════════════════════ */
+.results-toolbar {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0; flex-wrap: wrap;
+  background: var(--bg1);
+}
+.sort-tabs { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.sort-tab {
+  padding: 4px 10px;
+  background: transparent; border: none;
+  color: var(--txt3); font-family: var(--font-mono);
+  font-size: 10px; font-weight: 500;
+  cursor: pointer; border-right: 1px solid var(--line);
+  transition: all 0.12s;
+}
+.sort-tab:last-child { border-right: none; }
+.sort-tab.active { background: var(--bg3); color: var(--txt2); }
+.sort-tab:hover:not(.active) { color: var(--txt2); }
+.filter-search { flex: 1; min-width: 150px; max-width: 260px; }
+
+/* URL filter chips */
+.url-filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.url-check {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 3px;
+  border: 1px solid var(--line); background: var(--bg2);
+  cursor: pointer; font-size: 10px; color: var(--txt3);
+  transition: all 0.1s; user-select: none;
+}
+.url-check.checked { border-color: rgba(232,255,71,0.3); color: var(--acc); background: rgba(232,255,71,0.05); }
+.url-check-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--line2); flex-shrink: 0; }
+.url-check.checked .url-check-dot { background: var(--acc); }
+
+.results-body { flex: 1; overflow-y: auto; }
+
+/* Day section */
+.day-section { border-bottom: 1px solid var(--line); }
+.day-header {
+  padding: 8px 18px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px;
+  position: sticky; top: 0; z-index: 10;
+  cursor: pointer; user-select: none; transition: background 0.1s;
+}
+.day-header:hover { background: var(--bg2); }
+.day-chevron {
+  font-size: 9px; color: var(--txt3);
+  transition: transform 0.18s ease;
+  flex-shrink: 0; width: 10px; display: inline-block;
+}
+.day-section.open .day-chevron { transform: rotate(90deg); }
+.day-section-body { display: none; }
+.day-section.open .day-section-body { display: block; }
+.day-label { font-family: var(--font-display); font-size: 15px; letter-spacing: 1px; color: var(--txt2); }
+.day-count { font-size: 10px; color: var(--txt3); border: 1px solid var(--line); padding: 1px 6px; border-radius: 3px; }
+
+/* Run group */
+.run-group { border-bottom: 1px solid var(--line); }
+.run-header {
+  padding: 7px 18px; display: flex; align-items: center; gap: 8px;
+  background: var(--bg2); border-bottom: 1px solid var(--line);
+  cursor: pointer; user-select: none; transition: background 0.1s;
+}
+.run-header:hover { background: var(--bg3); }
+.run-chevron {
+  font-size: 9px; color: var(--txt3);
+  transition: transform 0.18s ease;
+  flex-shrink: 0; width: 10px; display: inline-block;
+}
+.run-group.open > .run-header .run-chevron { transform: rotate(90deg); }
+.run-body { display: none; }
+.run-group.open > .run-body { display: block; }
+.run-time { font-size: 11px; font-weight: 600; color: var(--acc); letter-spacing: 0.5px; min-width: 60px; }
+.run-source { font-size: 10px; color: var(--txt3); border-left: 1px solid var(--line); padding-left: 10px; }
+.run-count { font-size: 10px; color: var(--txt3); margin-left: auto; }
+.run-test-badge {
+  font-size: 9px; font-weight: 600; letter-spacing: 1px;
+  color: var(--acc3); border: 1px solid rgba(71,200,255,0.3);
+  padding: 1px 6px; border-radius: 2px;
+}
+
+/* Link item */
+.link-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 8px 18px; border-bottom: 1px solid rgba(46,46,66,0.6);
+  transition: background 0.1s; user-select: text;
+}
+.link-row:hover { background: var(--bg2); }
+.link-row:last-child { border-bottom: none; }
+.link-num { font-size: 9px; color: var(--txt3); min-width: 22px; padding-top: 1px; text-align: right; user-select: none; }
+.link-content { flex: 1; min-width: 0; }
+.link-title { font-size: 12px; font-weight: 500; color: var(--txt); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.link-url { font-size: 10px; color: var(--acc3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; display: inline-block; max-width: 100%; }
+.link-url:hover { text-decoration: underline; }
+.link-open-btn {
+  background: none; border: 1px solid var(--line); border-radius: 3px;
+  color: var(--txt3); font-size: 9px; font-family: var(--font-mono);
+  padding: 2px 7px; cursor: pointer; flex-shrink: 0; align-self: center;
+  transition: all 0.1s; white-space: nowrap;
+}
+.link-open-btn:hover { color: var(--acc); border-color: rgba(232,255,71,0.3); background: rgba(232,255,71,0.05); }
+
+.empty-results {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; gap: 12px; color: var(--txt3);
+}
+.empty-icon { font-size: 36px; opacity: 0.3; }
+.empty-msg { font-size: 13px; }
+.empty-sub { font-size: 11px; opacity: 0.6; }
+
+/* ═══════════════════════════════════════════════
+   ARCHIVE PANEL
+═══════════════════════════════════════════════ */
+.archive-toolbar {
+  padding: 10px 16px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0; background: var(--bg1); flex-wrap: wrap;
+}
+.archive-body { flex: 1; overflow-y: auto; }
+.archive-stats {
+  padding: 12px 18px; display: flex; gap: 20px;
+  border-bottom: 1px solid var(--line); flex-shrink: 0;
+}
+.stat { display: flex; flex-direction: column; gap: 2px; }
+.stat-val { font-family: var(--font-display); font-size: 22px; color: var(--txt); }
+.stat-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--txt3); }
+
+/* ═══════════════════════════════════════════════
+   CAPTURED MODAL
+═══════════════════════════════════════════════ */
+.captured-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 900;
+  align-items: center; justify-content: center;
+}
+.captured-overlay.show { display: flex; }
+.captured-modal {
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  width: 700px; max-width: 92vw;
+  height: 70vh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.captured-modal-head {
+  padding: 12px 16px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+}
+.captured-modal-title { font-family: var(--font-display); font-size: 16px; letter-spacing: 1px; color: var(--txt); margin-right: 4px; }
+.captured-modal-sub { font-size: 10px; color: var(--txt3); }
+.captured-modal-body { flex: 1; overflow-y: auto; }
+.captured-link-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 7px 16px; border-bottom: 1px solid var(--line);
+  transition: background 0.1s;
+}
+.captured-link-row:hover { background: var(--bg3); }
+.captured-link-row:last-child { border-bottom: none; }
+.captured-link-num { font-size: 9px; color: var(--txt3); min-width: 28px; padding-top: 1px; text-align: right; }
+.captured-link-body { flex: 1; min-width: 0; }
+.captured-link-title { font-size: 11px; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.captured-link-url { font-size: 10px; color: var(--acc3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.captured-link-url:hover { text-decoration: underline; }
+.captured-link-meta { font-size: 9px; color: var(--txt3); white-space: nowrap; }
+.captured-empty { padding: 40px; text-align: center; color: var(--txt3); font-size: 11px; }
+
+/* ═══════════════════════════════════════════════
+   URLS PANEL
+═══════════════════════════════════════════════ */
+.urls-layout { flex: 1; display: grid; grid-template-columns: 320px 1fr; overflow: hidden; }
+.urls-list { border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
+.urls-list-head {
+  padding: 10px 14px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0; background: var(--bg1);
+}
+.urls-list-head .label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--txt3); }
+.url-items { flex: 1; overflow-y: auto; }
+.url-item {
+  padding: 10px 14px; border-bottom: 1px solid var(--line);
+  cursor: pointer; transition: background 0.1s;
+  display: flex; align-items: center; gap: 8px;
+}
+.url-item:hover { background: var(--bg2); }
+.url-item.selected { background: rgba(232,255,71,0.04); border-left: 2px solid var(--acc); padding-left: 12px; }
+.url-item-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--txt3); flex-shrink: 0; }
+.url-item.enabled .url-item-dot { background: var(--acc4); box-shadow: 0 0 5px var(--acc4); }
+.url-item-text { flex: 1; min-width: 0; }
+.url-item-name { font-size: 12px; font-weight: 500; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.url-item-sched { font-size: 10px; color: var(--txt3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.url-editor { display: flex; flex-direction: column; overflow: hidden; }
+.url-editor-head {
+  padding: 10px 18px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0; background: var(--bg1);
+}
+.url-editor-body { flex: 1; overflow-y: auto; padding: 20px 18px; display: flex; flex-direction: column; gap: 20px; }
+.url-editor-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--txt3); }
+
+/* Form groups */
+.fg { display: flex; flex-direction: column; gap: 6px; }
+.fg-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--txt2); }
+.fg-label-row { display: flex; align-items: center; gap: 8px; }
+.fg-label-hint { font-size: 9px; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--txt2); font-style: italic; }
+
+/* Schedule */
+.sched-mode-tabs { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; width: fit-content; }
+.sched-mode-tab {
+  padding: 5px 14px; background: transparent; border: none;
+  color: var(--txt3); font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  cursor: pointer; border-right: 1px solid var(--line); transition: all 0.12s;
+}
+.sched-mode-tab:last-child { border-right: none; }
+.sched-mode-tab.active { background: rgba(232,255,71,0.08); color: var(--acc); }
+.sched-mode-tab:hover:not(.active) { background: var(--bg3); color: var(--txt2); }
+.sched-options { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.sched-opt-label { font-size: 10px; color: var(--txt3); white-space: nowrap; }
+.sched-select {
+  background: var(--bg2); border: 1px solid var(--line); border-radius: 4px;
+  padding: 5px 8px; color: var(--txt); font-family: var(--font-mono); font-size: 11px;
+  outline: none; cursor: pointer; transition: border-color 0.12s;
+}
+.sched-select:focus { border-color: rgba(232,255,71,0.4); }
+.sched-preview {
+  font-size: 10px; color: var(--acc4);
+  border: 1px solid rgba(168,255,120,0.2);
+  border-radius: 3px; padding: 2px 8px; white-space: nowrap;
+}
+
+/* Filters */
+.filters-list { display: flex; flex-direction: column; gap: 4px; }
+.filter-chip { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--bg3); border: 1px solid var(--line); border-radius: 4px; }
+.filter-chip-text { flex: 1; font-size: 11px; color: var(--txt); }
+.filter-chip-rm { background: none; border: none; color: var(--txt3); cursor: pointer; font-size: 14px; line-height: 1; }
+.filter-chip-rm:hover { color: var(--acc2); }
+.filter-add-row { display: flex; gap: 6px; align-items: center; }
+
+/* Run Now flash */
+@keyframes runNowFlash {
+  0%   { background: rgba(232,255,71,0.18); }
+  100% { background: transparent; }
+}
+.run-now-flash { animation: runNowFlash 0.7s ease-out forwards; }
+
+/* ═══════════════════════════════════════════════
+   TEST AREA
+═══════════════════════════════════════════════ */
+.test-info-btn {
+  background: none; border: 1px solid var(--line);
+  border-radius: 50%; width: 16px; height: 16px;
+  color: var(--txt3); font-size: 9px; font-family: var(--font-mono);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.1s; flex-shrink: 0; line-height: 1;
+}
+.test-info-btn:hover { color: var(--acc3); border-color: rgba(77,208,255,0.4); }
+.test-info-popup {
+  padding: 9px 12px;
+  background: var(--bg3);
+  border: 1px solid rgba(77,208,255,0.2);
+  border-radius: 4px;
+  font-size: 11px; color: var(--txt2); line-height: 1.6;
+}
+.test-area {
+  background: var(--bg2); border: 1px solid var(--line);
+  border-radius: 6px; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.test-status-row { display: flex; align-items: center; gap: 10px; }
+.test-filter-row { display: flex; gap: 6px; align-items: center; }
+.test-results {
+  max-height: 260px; overflow-y: auto;
+  background: var(--bg0); border: 1px solid var(--line);
+  border-radius: 4px; display: none;
+}
+.test-results.show { display: block; }
+.test-divider {
+  text-align: center; font-size: 9px; color: var(--txt3);
+  padding: 5px 12px; border-bottom: 1px solid var(--line);
+  letter-spacing: 0.5px; background: var(--bg1);
+}
+.test-link-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 7px 12px; border-bottom: 1px solid var(--line);
+  transition: background 0.1s;
+}
+.test-link-row:last-child { border-bottom: none; }
+.test-link-row:hover { background: var(--bg2); }
+.test-link-row.matched {
+  background: rgba(232,255,71,0.04);
+  border-left: 2px solid rgba(232,255,71,0.4);
+  padding-left: 10px;
+}
+.test-link-row.matched .test-link-title { color: var(--acc); }
+.test-link-row.captured { opacity: 0.4; }
+.matched-btn {
+  background: rgba(232,255,71,0.08); border: 1px solid rgba(232,255,71,0.3);
+  color: var(--acc); font-size: 9px; font-family: var(--font-mono);
+  padding: 2px 7px; border-radius: 3px; cursor: pointer;
+  white-space: nowrap; align-self: center; transition: background 0.1s;
+}
+.matched-btn:hover { background: rgba(232,255,71,0.15); }
+.test-link-num { font-size: 9px; color: var(--txt3); min-width: 18px; padding-top: 1px; }
+.test-link-body { flex: 1; min-width: 0; }
+.test-link-title { font-size: 11px; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.test-link-url { font-size: 10px; color: var(--acc3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.test-link-url:hover { text-decoration: underline; }
+.test-ip-note {
+  font-size: 10px; color: var(--txt3);
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  line-height: 1.5;
+}
+.test-ip-note span { color: #ffc832; }
+
+/* Enable toggle in editor header */
+.url-enable-wrap {
+  display: flex; align-items: center; gap: 7px;
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid var(--line); background: var(--bg2);
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.url-enable-wrap:hover { border-color: var(--line2); }
+.url-enable-wrap.on { border-color: rgba(168,255,120,0.35); background: rgba(168,255,120,0.06); }
+.url-enable-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; color: var(--txt3); min-width: 20px; transition: color 0.2s; }
+.url-enable-wrap.on .url-enable-label { color: var(--acc4); }
+
+/* ═══════════════════════════════════════════════
+   SETTINGS PANEL
+═══════════════════════════════════════════════ */
+.settings-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.sett-card { background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.sett-card-head { padding: 8px 14px; background: var(--bg3); border-bottom: 1px solid var(--line); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--txt2); }
+.sett-row { padding: 10px 14px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); }
+.sett-row:last-child { border-bottom: none; }
+.sett-lbl { min-width: 180px; font-size: 12px; color: var(--txt); }
+.sett-lbl-hint { font-size: 10px; color: var(--txt3); margin-top: 2px; }
+.sett-lbl-wrap { display: flex; flex-direction: column; }
+.sett-saved-note { font-size: 10px; color: var(--acc4); opacity: 0; transition: opacity 0.3s; margin-left: 6px; }
+.sett-saved-note.show { opacity: 1; }
+
+/* ═══════════════════════════════════════════════
+   SERVER LOG
+═══════════════════════════════════════════════ */
+.log-panel {
+  height: 160px; min-height: 30px; max-height: 600px;
+  border-top: 1px solid var(--line);
+  background: var(--bg0); display: flex; flex-direction: column;
+  flex-shrink: 0; position: relative;
+}
+.log-panel.collapsed { height: 30px !important; }
+.log-resize-handle {
+  position: absolute; top: -5px; left: 0; right: 0;
+  height: 10px; cursor: ns-resize; z-index: 20;
+}
+.log-resize-handle::after {
+  content: ''; display: block; margin: 4px auto 0;
+  width: 48px; height: 3px; border-radius: 2px;
+  background: var(--line2); opacity: 0; transition: opacity 0.15s;
+}
+.log-resize-handle:hover::after { opacity: 1; }
+.log-panel.collapsed .log-resize-handle { display: none; }
+.log-panel-head {
+  padding: 5px 12px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0; height: 30px; user-select: none;
+}
+.log-panel-title { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--txt3); }
+.log-toggle-btn {
+  background: none; border: none; color: var(--txt3); font-size: 9px;
+  cursor: pointer; padding: 0 3px; line-height: 1; transition: color 0.12s;
+  font-family: var(--font-mono);
+}
+.log-toggle-btn:hover { color: var(--acc); }
+.log-scroll-status {
+  font-size: 9px; color: var(--txt3);
+  border: 1px solid var(--line); border-radius: 3px;
+  padding: 1px 5px; pointer-events: none; transition: all 0.2s;
+}
+.log-scroll-status.live { color: var(--acc4); border-color: rgba(168,255,120,0.25); }
+.log-clear { background: none; border: none; color: var(--txt3); font-size: 10px; cursor: pointer; margin-left: auto; font-family: var(--font-mono); }
+.log-clear:hover { color: var(--txt2); }
+.log-entries { flex: 1; overflow-y: auto; padding: 4px 8px; display: flex; flex-direction: column; gap: 0; }
+.log-panel.collapsed .log-entries { display: none; }
+.le { font-size: 10px; line-height: 1.6; padding: 1px 4px; border-radius: 2px; word-break: break-all; }
+.le.info { color: var(--txt2); }
+.le.error { color: var(--acc2); background: rgba(255,71,87,0.05); }
+.le.warn { color: #ffc832; }
+.le.success { color: var(--acc4); }
+.le-ts { color: var(--txt3); margin-right: 6px; }
+
+/* ═══════════════════════════════════════════════
+   MISC
+═══════════════════════════════════════════════ */
+.spin {
+  width: 14px; height: 14px;
+  border: 2px solid var(--line2); border-top-color: var(--acc);
+  border-radius: 50%; animation: spin 0.6s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.confirm-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); z-index: 1000;
+  align-items: center; justify-content: center;
+}
+.confirm-overlay.show { display: flex; }
+.confirm-box {
+  background: var(--bg2); border: 1px solid var(--line2);
+  border-radius: 8px; padding: 24px; max-width: 380px; width: 90%;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.confirm-title { font-family: var(--font-display); font-size: 18px; letter-spacing: 1px; color: var(--acc2); }
+.confirm-msg { font-size: 12px; color: var(--txt2); line-height: 1.6; }
+.confirm-btns { display: flex; gap: 8px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<!-- Titlebar -->
+<div class="titlebar">
+  <div class="title-logo">LINK<span>WATCH</span></div>
+  <div class="titlebar-right">
+    <div class="server-pill stopped" id="serverPill" onclick="toggleServer()">
+      <div class="s-dot"></div>
+      <span id="serverLabel">SERVER OFF</span>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <!-- Sidebar: Results → URLs → Archive → Settings -->
+  <nav class="sidebar">
+    <button class="nav-item active" data-panel="panel-results" title="Results">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H5a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v0a2 2 0 0 0-2-2h-4"/><rect x="9" y="3" width="6" height="14" rx="1"/></svg>
+    </button>
+    <button class="nav-item" data-panel="panel-urls" title="URL Sources">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    </button>
+    <button class="nav-item" data-panel="panel-archive" title="Archive">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+    </button>
+    <div class="nav-spacer"></div>
+    <button class="nav-item" data-panel="panel-settings" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </nav>
+
+  <div class="content">
+
+    <!-- RESULTS PANEL -->
+    <div class="panel active" id="panel-results">
+      <div class="panel-head">
+        <span class="panel-title">RESULTS</span>
+        <div class="panel-head-right">
+          <div class="url-filters" id="urlFilterChips"></div>
+        </div>
+      </div>
+      <div class="results-toolbar">
+        <div class="sort-tabs">
+          <button class="sort-tab active" data-sort="date">By Date</button>
+          <button class="sort-tab" data-sort="url">By Source</button>
+        </div>
+        <div class="sort-tabs" style="margin-left:4px;">
+          <button class="sort-tab active" data-dir="desc">↓ Newest</button>
+          <button class="sort-tab" data-dir="asc">↑ Oldest</button>
+        </div>
+        <input type="text" class="inp inp-sm filter-search" id="resultsFilter" placeholder="Filter displayed links...">
+      </div>
+      <div class="results-body" id="resultsBody">
+        <div class="empty-results">
+          <div class="empty-icon">◈</div>
+          <div class="empty-msg">No results yet</div>
+          <div class="empty-sub">Add a URL source and start the scheduler</div>
+        </div>
+      </div>
+      <div class="log-panel" id="logPanel">
+        <div class="log-resize-handle" id="logResizeHandle"></div>
+        <div class="log-panel-head">
+          <button class="log-toggle-btn" id="logToggleBtn" onclick="toggleLog()">&#9658;</button>
+          <span class="log-panel-title">Server Log</span>
+          <span class="log-scroll-status live" id="logScrollStatus">↓ LIVE</span>
+          <button class="log-clear" onclick="clearLog()">clear</button>
+        </div>
+        <div class="log-entries" id="logEntries"></div>
+      </div>
+    </div>
+
+    <!-- URLS PANEL -->
+    <div class="panel" id="panel-urls">
+      <div class="panel-head">
+        <span class="panel-title">URL SOURCES</span>
+        <div class="panel-head-right">
+          <button class="btn btn-acc" onclick="addNewUrl()">+ Add URL</button>
+        </div>
+      </div>
+      <div class="urls-layout">
+        <div class="urls-list">
+          <div class="urls-list-head">
+            <span class="label">Sources</span>
+            <span id="urlCount" style="font-size:10px;color:var(--txt3);margin-left:auto;">0</span>
+          </div>
+          <div class="url-items" id="urlItemsList"></div>
+        </div>
+        <div class="url-editor" id="urlEditorArea">
+          <div class="url-editor-empty">
+            <div style="font-size:28px;opacity:0.3;">◈</div>
+            <div style="font-size:12px;">Select a source to edit</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARCHIVE PANEL -->
+    <div class="panel" id="panel-archive">
+      <div class="panel-head">
+        <span class="panel-title">ARCHIVE</span>
+        <div class="panel-head-right">
+          <button class="btn btn-sm btn-ghost" onclick="viewCaptured()">View Captured</button>
+          <button class="btn btn-sm btn-danger" onclick="confirmClearCaptured()">Clear Captured</button>
+          <button class="btn btn-sm btn-danger" onclick="confirmClearAll()">Clear All</button>
+        </div>
+      </div>
+      <div class="archive-stats" id="archiveStats">
+        <div class="stat"><div class="stat-val" id="aStat1">0</div><div class="stat-lbl">Total Runs</div></div>
+        <div class="stat"><div class="stat-val" id="aStat2">0</div><div class="stat-lbl">Links Found</div></div>
+        <div class="stat"><div class="stat-val" id="aStat3">0</div><div class="stat-lbl">Captured</div></div>
+        <div class="stat"><div class="stat-val" id="aStat4">0</div><div class="stat-lbl">Sources</div></div>
+      </div>
+      <div class="archive-toolbar">
+        <input type="text" class="inp inp-sm" style="flex:1;max-width:300px;" id="archiveFilter" placeholder="Filter archive...">
+        <div class="url-filters" id="archiveUrlChips"></div>
+      </div>
+      <div class="archive-body" id="archiveBody">
+        <div class="empty-results">
+          <div class="empty-icon">◈</div>
+          <div class="empty-msg">No history yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS PANEL -->
+    <div class="panel" id="panel-settings">
+      <div class="panel-head">
+        <span class="panel-title">SETTINGS</span>
+        <div class="panel-head-right">
+          <span class="sett-saved-note" id="settSavedNote">✓ Saved</span>
+        </div>
+      </div>
+      <div class="settings-body">
+        <div class="sett-card">
+          <div class="sett-card-head">Notifications</div>
+          <div class="sett-row">
+            <div class="sett-lbl-wrap">
+              <span class="sett-lbl">Notify on failed scrape</span>
+              <span class="sett-lbl-hint">System notification when a URL fails to scrape</span>
+            </div>
+            <div class="toggle" id="tNotifyFail" onclick="this.classList.toggle('on'); autoSaveSettings()"></div>
+          </div>
+        </div>
+        <div class="sett-card">
+          <div class="sett-card-head">Data</div>
+          <div class="sett-row">
+            <div class="sett-lbl-wrap">
+              <span class="sett-lbl">Data location</span>
+              <span class="sett-lbl-hint">AppData / userData folder</span>
+            </div>
+            <span id="dataPath" style="font-size:10px;color:var(--txt3);"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Captured links modal -->
+<div class="captured-overlay" id="capturedOverlay">
+  <div class="captured-modal">
+    <div class="captured-modal-head">
+      <span class="captured-modal-title">CAPTURED LINKS</span>
+      <span class="captured-modal-sub" id="capturedModalSub"></span>
+      <input type="text" class="inp inp-sm" id="capturedFilter" placeholder="Filter..." style="flex:1;max-width:220px;margin-left:auto;" oninput="filterCaptured()">
+      <button class="btn btn-ghost btn-sm" onclick="closeCaptured()">✕ Close</button>
+    </div>
+    <div class="captured-modal-body" id="capturedBody"></div>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirmTitle">CONFIRM</div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button class="btn" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="confirmOkBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let config = { notifyOnFail: false, urls: [] };
+let results = [];
+let currentSort = 'date';
+let currentDir = 'desc';
+let resultsFilter = '';
+let archiveFilter = '';
+let enabledUrlIds = new Set();
+let archiveEnabledUrlIds = new Set();
+let selectedUrlId = null;
+let collapsedGroups = new Set();   // uses namespaced IDs: res_rg_X or arc_rg_X
+let collapsedDays = new Set();     // uses namespaced IDs: res_ds_X or arc_ds_X
+let logAutoScroll = true;
+let _capturedLinks = [];           // for captured modal
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+async function init() {
+  config = await api.getConfig();
+  results = await api.getResults();
+
+  applySettingsToUI();
+  buildUrlList();
+  enabledUrlIds = new Set((config.urls || []).map(u => u.id));
+  archiveEnabledUrlIds = new Set((config.urls || []).map(u => u.id));
+  buildUrlFilterChips();
+  renderResults();
+  renderArchive();
+  updateArchiveStats();
+
+  const status = await api.serverStatus();
+  updateServerUI(status.running ? (status.ready ? 'running' : 'starting') : 'stopped');
+
+  api.onServerLog(addLog);
+  api.onServerStatus(s => updateServerUI(s));
+  api.onNewResults(entry => {
+    results.unshift(entry);
+    // If this source hasn't been seen before, show it by default
+    if (!enabledUrlIds.has(entry.urlId)) enabledUrlIds.add(entry.urlId);
+    if (!archiveEnabledUrlIds.has(entry.urlId)) archiveEnabledUrlIds.add(entry.urlId);
+    renderResults();
+    renderArchive();
+    updateArchiveStats();
+    buildUrlFilterChips();
+  });
+
+  document.querySelectorAll('.nav-item[data-panel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      flushDirty();
+      if (selectedUrlId) saveUrlEntryNow(selectedUrlId, true);
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.panel).classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('.sort-tab[data-sort]').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.sort-tab[data-sort]').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      currentSort = t.dataset.sort;
+      renderResults();
+    });
+  });
+
+  document.querySelectorAll('.sort-tab[data-dir]').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.sort-tab[data-dir]').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      currentDir = t.dataset.dir;
+      renderResults();
+    });
+  });
+
+  document.getElementById('resultsFilter').addEventListener('input', e => {
+    resultsFilter = e.target.value.toLowerCase();
+    renderResults();
+  });
+  document.getElementById('archiveFilter').addEventListener('input', e => {
+    archiveFilter = e.target.value.toLowerCase();
+    renderArchive();
+  });
+
+  const dataPath = await api.getUserDataPath();
+  document.getElementById('dataPath').textContent = dataPath;
+
+  initLogPanel();
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { flushDirty(); if (selectedUrlId) saveUrlEntryNow(selectedUrlId, true); }
+  });
+  window.addEventListener('blur', () => { flushDirty(); if (selectedUrlId) saveUrlEntryNow(selectedUrlId, true); });
+  window.addEventListener('beforeunload', () => { flushDirty(); if (selectedUrlId) saveUrlEntryNow(selectedUrlId, true); });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SERVER
+// ═══════════════════════════════════════════════════════════════════
+async function toggleServer() {
+  const s = await api.serverStatus();
+  if (s.running) {
+    await api.serverStop();
+    updateServerUI('stopped');
+  } else {
+    updateServerUI('starting');
+    await api.serverStart();
+  }
+}
+function updateServerUI(status) {
+  const pill = document.getElementById('serverPill');
+  const label = document.getElementById('serverLabel');
+  pill.className = `server-pill ${status}`;
+  const map = { running: 'SERVER RUNNING', starting: 'STARTING...', stopped: 'SERVER OFF', error: 'SERVER ERROR' };
+  label.textContent = map[status] || status.toUpperCase();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RESULTS RENDERING
+// ═══════════════════════════════════════════════════════════════════
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+function formatDate(d) {
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+function filterLinkText(link) {
+  if (!resultsFilter) return true;
+  return (link.title || '').toLowerCase().includes(resultsFilter) ||
+         (link.url || '').toLowerCase().includes(resultsFilter);
+}
+
+function renderResults() {
+  const body = document.getElementById('resultsBody');
+  if (results.length === 0) {
+    body.innerHTML = `<div class="empty-results"><div class="empty-icon">◈</div><div class="empty-msg">No results yet</div><div class="empty-sub">Add a URL source and enable scanning</div></div>`;
+    return;
+  }
+  let filtered = results.filter(entry => enabledUrlIds.has(entry.urlId) || entry.urlId === 'test');
+  if (filtered.length === 0) {
+    body.innerHTML = `<div class="empty-results"><div class="empty-icon">◈</div><div class="empty-msg">All sources hidden</div><div class="empty-sub">Enable at least one source filter above</div></div>`;
+    return;
+  }
+
+  filtered = [...filtered].sort((a, b) => {
+    const ta = new Date(a.timestamp).getTime();
+    const tb = new Date(b.timestamp).getTime();
+    return currentDir === 'desc' ? tb - ta : ta - tb;
+  });
+
+  let html = '';
+
+  if (currentSort === 'url') {
+    // By Source: group by urlId. Within each group, runs are in time order.
+    const urlGroups = {};
+    const urlOrder = [];
+    filtered.forEach(entry => {
+      const key = entry.urlId;
+      if (!urlGroups[key]) { urlGroups[key] = { name: entry.urlNickname, entries: [] }; urlOrder.push(key); }
+      urlGroups[key].entries.push(entry);
+    });
+
+    urlOrder.forEach(key => {
+      const group = urlGroups[key];
+      const totalLinks = group.entries.reduce((n, e) => n + e.links.filter(filterLinkText).length, 0);
+      if (totalLinks === 0 && resultsFilter) return;
+
+      const dsId = 'res_ds_url_' + key.replace(/\W/g,'_');
+      const isOpen = !collapsedDays.has(dsId);
+      html += `<div class="day-section ${isOpen?'open':''}" id="${dsId}">`;
+      html += `<div class="day-header" onclick="toggleDaySection('${dsId}')"><span class="day-chevron">&#9658;</span><span class="day-label">${esc(group.name)}</span><span class="day-count">${totalLinks} link${totalLinks!==1?'s':''}</span></div>`;
+      html += `<div class="day-section-body">`;
+      group.entries.forEach(e => { html += renderRunGroup(e, 'res'); });
+      html += `</div></div>`;
+    });
+  } else {
+    // By Date: group by calendar day, show each run individually with source name visible.
+    const dayMap = {};
+    const dayOrder = [];
+    filtered.forEach(entry => {
+      const dk = new Date(entry.timestamp); dk.setHours(0,0,0,0);
+      const key = dk.getTime();
+      if (!dayMap[key]) { dayMap[key] = { date: dk, entries: [] }; dayOrder.push(key); }
+      dayMap[key].entries.push(entry);
+    });
+
+    dayOrder.forEach(key => {
+      const { date, entries } = dayMap[key];
+      const totalLinks = entries.reduce((n, e) => n + e.links.filter(filterLinkText).length, 0);
+      if (totalLinks === 0 && resultsFilter) return;
+
+      const dsId = 'res_ds_' + key;
+      const isOpen = !collapsedDays.has(dsId);
+      html += `<div class="day-section ${isOpen?'open':''}" id="${dsId}">`;
+      html += `<div class="day-header" onclick="toggleDaySection('${dsId}')"><span class="day-chevron">&#9658;</span><span class="day-label">${formatDate(date)}</span><span class="day-count">${totalLinks} link${totalLinks!==1?'s':''}</span></div>`;
+      html += `<div class="day-section-body">`;
+      // Each run is shown separately with its own time + source label
+      entries.forEach(e => { html += renderRunGroup(e, 'res'); });
+      html += `</div></div>`;
+    });
+  }
+
+  body.innerHTML = html || `<div class="empty-results"><div class="empty-icon">◈</div><div class="empty-msg">No matching results</div></div>`;
+}
+
+function toggleDaySection(dsId) {
+  const el = document.getElementById(dsId);
+  if (!el) return;
+  el.classList.toggle('open');
+  if (el.classList.contains('open')) collapsedDays.delete(dsId);
+  else collapsedDays.add(dsId);
+}
+
+// ns = 'res' or 'arc' — namespace to avoid duplicate IDs between panels
+// linksOverride: if provided, use these links instead of filtering entry.links internally
+function renderRunGroup(entry, ns, linksOverride) {
+  const links = linksOverride !== undefined
+    ? linksOverride
+    : entry.links.filter(filterLinkText);
+  if (!links.length && (linksOverride !== undefined ? false : !!resultsFilter)) return '';
+
+  const gid = `${ns}_rg_${entry.id}`;
+  const isOpen = !collapsedGroups.has(gid);
+
+  let html = `<div class="run-group ${isOpen?'open':''}" id="${gid}">`;
+  html += `<div class="run-header" onclick="toggleRunGroup('${gid}')">`;
+  html += `<span class="run-chevron">&#9658;</span>`;
+  html += `<span class="run-time">${formatTime(entry.timestamp)}</span>`;
+  html += `<span class="run-source">${esc(entry.urlNickname)}</span>`;
+  if (entry.isTest) html += `<span class="run-test-badge">TEST</span>`;
+  html += `<span class="run-count">${links.length} link${links.length!==1?'s':''}</span>`;
+  html += `</div>`;
+  html += `<div class="run-body">`;
+  links.forEach((link, i) => {
+    html += `<div class="link-row">`;
+    html += `<span class="link-num">${i+1}</span>`;
+    html += `<div class="link-content">`;
+    html += `<div class="link-title">${esc(link.title || 'Untitled')}</div>`;
+    html += `<div class="link-url" onclick="openLink('${esc(link.url)}')" title="${esc(link.url)}">${esc(link.url)}</div>`;
+    html += `</div>`;
+    html += `<button class="link-open-btn" onclick="openLink('${esc(link.url)}')">open ↗</button>`;
+    html += `</div>`;
+  });
+  html += `</div></div>`;
+  return html;
+}
+
+function toggleRunGroup(gid) {
+  const el = document.getElementById(gid);
+  if (!el) return;
+  el.classList.toggle('open');
+  if (el.classList.contains('open')) collapsedGroups.delete(gid);
+  else collapsedGroups.add(gid);
+}
+
+function openLink(url) { api.openExternal(url); }
+
+// ═══════════════════════════════════════════════════════════════════
+// ARCHIVE
+// ═══════════════════════════════════════════════════════════════════
+function renderArchive() {
+  const body = document.getElementById('archiveBody');
+  let allEntries = results.filter(e => archiveEnabledUrlIds.has(e.urlId));
+
+  if (!allEntries.length) {
+    body.innerHTML = `<div class="empty-results"><div class="empty-icon">◈</div><div class="empty-msg">No history yet</div></div>`;
+    return;
+  }
+
+  allEntries = [...allEntries].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  const dayMap = {};
+  const dayOrder = [];
+  allEntries.forEach(e => {
+    const dk = new Date(e.timestamp); dk.setHours(0,0,0,0);
+    const key = dk.getTime();
+    if (!dayMap[key]) { dayMap[key] = { date: dk, entries: [] }; dayOrder.push(key); }
+    dayMap[key].entries.push(e);
+  });
+
+  const archFilterFn = l => !archiveFilter ||
+    (l.title || '').toLowerCase().includes(archiveFilter) ||
+    (l.url || '').toLowerCase().includes(archiveFilter);
+
+  let html = '';
+  dayOrder.forEach(key => {
+    const { date, entries } = dayMap[key];
+    const hasMatch = !archiveFilter || entries.some(e =>
+      e.urlNickname.toLowerCase().includes(archiveFilter) || e.links.some(archFilterFn)
+    );
+    if (!hasMatch) return;
+
+    const totalLinks = entries.reduce((n, e) => n + e.links.filter(archFilterFn).length, 0);
+    const dsId = 'arc_ds_' + key;
+    const isOpen = !collapsedDays.has(dsId);
+    html += `<div class="day-section ${isOpen?'open':''}" id="${dsId}">`;
+    html += `<div class="day-header" onclick="toggleDaySection('${dsId}')"><span class="day-chevron">&#9658;</span><span class="day-label">${formatDate(date)}</span><span class="day-count">${totalLinks} links</span></div>`;
+    html += `<div class="day-section-body">`;
+
+    entries.forEach(e => {
+      const links = e.links.filter(archFilterFn);
+      if (!links.length && archiveFilter) return;
+      html += renderRunGroup(e, 'arc', links);
+    });
+    html += `</div></div>`;
+  });
+
+  body.innerHTML = html || `<div class="empty-results"><div class="empty-icon">◈</div><div class="empty-msg">No matches</div></div>`;
+}
+
+async function updateArchiveStats() {
+  const seenCnt = await api.getSeenCount();
+  document.getElementById('aStat1').textContent = results.filter(r => !r.isTest).length;
+  document.getElementById('aStat2').textContent = results.reduce((n, r) => n + r.links.length, 0);
+  document.getElementById('aStat3').textContent = seenCnt.toLocaleString();
+  document.getElementById('aStat4').textContent = new Set(results.map(r => r.urlId)).size;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CAPTURED LINKS MODAL
+// ═══════════════════════════════════════════════════════════════════
+function viewCaptured() {
+  // Aggregate all unique links from results (deduped by URL)
+  const seen = new Map();
+  [...results].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach(entry => {
+    entry.links.forEach(l => {
+      if (!seen.has(l.url)) {
+        seen.set(l.url, { title: l.title, url: l.url, source: entry.urlNickname, timestamp: entry.timestamp });
+      }
+    });
+  });
+  _capturedLinks = [...seen.values()];
+
+  document.getElementById('capturedFilter').value = '';
+  document.getElementById('capturedModalSub').textContent = `${_capturedLinks.length.toLocaleString()} unique links`;
+  document.getElementById('capturedOverlay').classList.add('show');
+  renderCapturedList(_capturedLinks);
+}
+
+function filterCaptured() {
+  const term = document.getElementById('capturedFilter').value.toLowerCase();
+  const filtered = term
+    ? _capturedLinks.filter(l =>
+        (l.title || '').toLowerCase().includes(term) ||
+        (l.url || '').toLowerCase().includes(term) ||
+        (l.source || '').toLowerCase().includes(term))
+    : _capturedLinks;
+  renderCapturedList(filtered);
+}
+
+function renderCapturedList(links) {
+  const body = document.getElementById('capturedBody');
+  if (!links.length) {
+    body.innerHTML = `<div class="captured-empty">No matching links</div>`;
+    return;
+  }
+  body.innerHTML = links.map((l, i) => `
+    <div class="captured-link-row">
+      <span class="captured-link-num">${i+1}</span>
+      <div class="captured-link-body">
+        <div class="captured-link-title">${esc(l.title || 'Untitled')}</div>
+        <div class="captured-link-url" onclick="openLink('${esc(l.url)}')" title="${esc(l.url)}">${esc(l.url)}</div>
+        <div class="captured-link-meta">${esc(l.source)} · ${new Date(l.timestamp).toLocaleDateString()}</div>
+      </div>
+      <button class="link-open-btn" onclick="openLink('${esc(l.url)}')">open ↗</button>
+    </div>
+  `).join('');
+}
+
+function closeCaptured() {
+  document.getElementById('capturedOverlay').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// URL FILTER CHIPS
+// ═══════════════════════════════════════════════════════════════════
+function buildUrlFilterChips() {
+  const urlIds = [...new Set(results.map(r => r.urlId))];
+  const combined = [...(config.urls || [])];
+  const knownIds = new Set(combined.map(u => u.id));
+  urlIds.forEach(id => { if (!knownIds.has(id)) combined.push({ id, nickname: null, url: id }); });
+
+  const rc = document.getElementById('urlFilterChips');
+  rc.innerHTML = combined.map(u => {
+    const checked = enabledUrlIds.has(u.id);
+    const name = u.nickname || u.url || u.id;
+    return `<label class="url-check ${checked?'checked':''}" onclick="toggleUrlFilter('${u.id}', this)">
+      <div class="url-check-dot"></div>
+      ${esc(name.length > 20 ? name.slice(0,20)+'…' : name)}
+    </label>`;
+  }).join('');
+
+  const ac = document.getElementById('archiveUrlChips');
+  ac.innerHTML = combined.map(u => {
+    const checked = archiveEnabledUrlIds.has(u.id);
+    const name = u.nickname || u.url || u.id;
+    return `<label class="url-check ${checked?'checked':''}" onclick="toggleArchiveFilter('${u.id}', this)">
+      <div class="url-check-dot"></div>
+      ${esc(name.length > 20 ? name.slice(0,20)+'…' : name)}
+    </label>`;
+  }).join('');
+}
+
+// Results: allow full deselect (no minimum-1 guard)
+function toggleUrlFilter(id, el) {
+  if (enabledUrlIds.has(id)) {
+    enabledUrlIds.delete(id);
+    el.classList.remove('checked');
+  } else {
+    enabledUrlIds.add(id);
+    el.classList.add('checked');
+  }
+  renderResults();
+}
+
+function toggleArchiveFilter(id, el) {
+  if (archiveEnabledUrlIds.has(id)) {
+    archiveEnabledUrlIds.delete(id);
+    el.classList.remove('checked');
+  } else {
+    archiveEnabledUrlIds.add(id);
+    el.classList.add('checked');
+  }
+  renderArchive();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCHEDULE UI HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function scheduleToMode(sched) {
+  if (!sched) return 'hours';
+  if (sched.intervalMinutes >= 1440) return 'daily';
+  if (sched.intervalMinutes >= 60 && sched.intervalMinutes % 60 === 0) return 'hours';
+  return 'minutes';
+}
+
+function fmtMinutes(totalMin) {
+  if (totalMin === undefined || totalMin === null) return '?';
+  const h = Math.floor(totalMin / 60) % 24;
+  const m = totalMin % 60;
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  const mm = m === 0 ? '' : `:${m < 10 ? '0' + m : m}`;
+  return `${hh}${mm}${ampm}`;
+}
+
+function normalizeSched(sched) {
+  if (!sched) return { intervalMinutes: 60, startMinutes: 540, endMinutes: 1020 };
+  const startMinutes = (sched.startMinutes !== undefined) ? sched.startMinutes
+    : (sched.startHour !== undefined ? sched.startHour * 60 : 540);
+  const endMinutes = (sched.endMinutes !== undefined) ? sched.endMinutes
+    : (sched.endHour !== undefined ? sched.endHour * 60 : 1020);
+  return { intervalMinutes: sched.intervalMinutes || 60, startMinutes, endMinutes };
+}
+
+function schedulePreviewText(sched) {
+  if (!sched) return 'No schedule';
+  const mode = scheduleToMode(sched);
+  const n = normalizeSched(sched);
+  if (mode === 'daily') return `Daily at ${fmtMinutes(n.startMinutes)}`;
+  if (mode === 'hours') {
+    const hrs = Math.round(n.intervalMinutes / 60);
+    return `Every ${hrs}h · ${fmtMinutes(n.startMinutes)}–${fmtMinutes(n.endMinutes)}`;
+  }
+  return `Every ${n.intervalMinutes}m · ${fmtMinutes(n.startMinutes)}–${fmtMinutes(n.endMinutes)}`;
+}
+
+function makeHourOptions(selected) {
+  let html = '';
+  for (let h = 0; h < 24; h++) {
+    const ampm = h >= 12 ? 'pm' : 'am';
+    const label = `${h % 12 === 0 ? 12 : h % 12}:00 ${ampm}`;
+    html += `<option value="${h * 60}" ${h * 60 === selected ? 'selected' : ''}>${label}</option>`;
+  }
+  return html;
+}
+
+function makeQuarterHourOptions(selectedMinutes) {
+  let html = '';
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const totalMin = h * 60 + m;
+      const ampm = h >= 12 ? 'pm' : 'am';
+      const hh = h % 12 === 0 ? 12 : h % 12;
+      const mm = m === 0 ? '00' : m;
+      html += `<option value="${totalMin}" ${totalMin === selectedMinutes ? 'selected' : ''}>${hh}:${mm} ${ampm}</option>`;
+    }
+  }
+  return html;
+}
+
+function renderScheduleUI(sched) {
+  const mode = scheduleToMode(sched);
+  const n = normalizeSched(sched);
+  const minuteOptions = [5,10,15,20,30,45].map(m =>
+    `<option value="${m}" ${n.intervalMinutes === m ? 'selected' : ''}>${m} min</option>`).join('');
+  const hourOptions = [1,2,3,4,6,8,12].map(h =>
+    `<option value="${h}" ${Math.round(n.intervalMinutes/60) === h ? 'selected' : ''}>${h} hr${h>1?'s':''}</option>`).join('');
+  const startSel = mode === 'minutes' ? makeQuarterHourOptions(n.startMinutes) : makeHourOptions(n.startMinutes);
+  const endSel   = mode === 'minutes' ? makeQuarterHourOptions(n.endMinutes)   : makeHourOptions(n.endMinutes);
+
+  return `
+    <div class="sched-mode-tabs">
+      <button class="sched-mode-tab ${mode==='minutes'?'active':''}" onclick="onSchedModeChange('minutes')">Minutes</button>
+      <button class="sched-mode-tab ${mode==='hours'?'active':''}" onclick="onSchedModeChange('hours')">Hours</button>
+      <button class="sched-mode-tab ${mode==='daily'?'active':''}" onclick="onSchedModeChange('daily')">Daily</button>
+    </div>
+    <div class="sched-options" id="schedOptions">
+      ${mode === 'minutes' ? `
+        <span class="sched-opt-label">Every</span>
+        <select class="sched-select" id="eIntervalMin" onchange="updateSchedPreview()">${minuteOptions}</select>
+        <span class="sched-opt-label">from</span>
+        <select class="sched-select" id="eStartTime" onchange="updateSchedPreview()">${startSel}</select>
+        <span class="sched-opt-label">to</span>
+        <select class="sched-select" id="eEndTime" onchange="updateSchedPreview()">${endSel}</select>
+      ` : mode === 'hours' ? `
+        <span class="sched-opt-label">Every</span>
+        <select class="sched-select" id="eIntervalHrs" onchange="updateSchedPreview()">${hourOptions}</select>
+        <span class="sched-opt-label">from</span>
+        <select class="sched-select" id="eStartTime" onchange="updateSchedPreview()">${startSel}</select>
+        <span class="sched-opt-label">to</span>
+        <select class="sched-select" id="eEndTime" onchange="updateSchedPreview()">${endSel}</select>
+      ` : `
+        <span class="sched-opt-label">Once a day at</span>
+        <select class="sched-select" id="eStartTime" onchange="updateSchedPreview()">${makeHourOptions(n.startMinutes)}</select>
+      `}
+      <span class="sched-preview" id="schedPreview">${schedulePreviewText(sched)}</span>
+    </div>`;
+}
+
+function onSchedModeChange(newMode) {
+  const startMinutes = parseInt(document.getElementById('eStartTime')?.value ?? 540);
+  const endMinutes   = parseInt(document.getElementById('eEndTime')?.value ?? 1020);
+  const intervalMin  = parseInt(document.getElementById('eIntervalMin')?.value ?? 30);
+  const intervalHrs  = parseInt(document.getElementById('eIntervalHrs')?.value ?? 1);
+  const newIntervalMin = newMode === 'daily' ? 1440 : newMode === 'hours' ? intervalHrs * 60 : intervalMin;
+  const fakeSched = { intervalMinutes: newIntervalMin, startMinutes, endMinutes };
+  const container = document.getElementById('schedOptions');
+  if (!container) return;
+
+  const minuteOptions = [5,10,15,20,30,45].map(m =>
+    `<option value="${m}" ${intervalMin===m?'selected':''}>${m} min</option>`).join('');
+  const hourOptions = [1,2,3,4,6,8,12].map(h =>
+    `<option value="${h}" ${intervalHrs===h?'selected':''}>${h} hr${h>1?'s':''}</option>`).join('');
+
+  let inner = '';
+  if (newMode === 'minutes') {
+    inner = `<span class="sched-opt-label">Every</span>
+      <select class="sched-select" id="eIntervalMin" onchange="updateSchedPreview()">${minuteOptions}</select>
+      <span class="sched-opt-label">from</span>
+      <select class="sched-select" id="eStartTime" onchange="updateSchedPreview()">${makeQuarterHourOptions(startMinutes)}</select>
+      <span class="sched-opt-label">to</span>
+      <select class="sched-select" id="eEndTime" onchange="updateSchedPreview()">${makeQuarterHourOptions(endMinutes)}</select>`;
+  } else if (newMode === 'hours') {
+    inner = `<span class="sched-opt-label">Every</span>
+      <select class="sched-select" id="eIntervalHrs" onchange="updateSchedPreview()">${hourOptions}</select>
+      <span class="sched-opt-label">from</span>
+      <select class="sched-select" id="eStartTime" onchange="updateSchedPreview()">${makeHourOptions(startMinutes)}</select>
+      <span class="sched-opt-label">to</span>
+      <select class="sched-select" id="eEndTime" onchange="updateSchedPreview()">${makeHourOptions(endMinutes)}</select>`;
+  } else {
+    inner = `<span class="sched-opt-label">Once a day at</span>
+      <select class="sched-select" id="eStartTime" onchange="updateSchedPreview()">${makeHourOptions(startMinutes)}</select>`;
+  }
+  inner += `<span class="sched-preview" id="schedPreview">${schedulePreviewText(fakeSched)}</span>`;
+  container.innerHTML = inner;
+  document.querySelectorAll('.sched-mode-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.trim().toLowerCase() === newMode);
+  });
+  // Re-attach save listeners to newly created selects (the innerHTML swap destroyed the old ones)
+  if (selectedUrlId) attachEditorAutoSave(selectedUrlId);
+}
+
+function updateSchedPreview() {
+  const sched = readScheduleFromUI();
+  const el = document.getElementById('schedPreview');
+  if (el && sched) el.textContent = schedulePreviewText(sched);
+}
+
+function readScheduleFromUI() {
+  const activeModeTab = document.querySelector('.sched-mode-tab.active');
+  if (!activeModeTab) return null;
+  const mode = activeModeTab.textContent.trim().toLowerCase();
+  const startMinutes = parseInt(document.getElementById('eStartTime')?.value ?? 540);
+  const endMinutes   = parseInt(document.getElementById('eEndTime')?.value ?? 1020);
+  let intervalMinutes;
+  if (mode === 'daily') intervalMinutes = 1440;
+  else if (mode === 'hours') intervalMinutes = parseInt(document.getElementById('eIntervalHrs')?.value ?? 1) * 60;
+  else intervalMinutes = Math.max(5, parseInt(document.getElementById('eIntervalMin')?.value ?? 30));
+  return { intervalMinutes, startMinutes, endMinutes: mode === 'daily' ? startMinutes + 60 : endMinutes };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// URL EDITOR
+// ═══════════════════════════════════════════════════════════════════
+function buildUrlList() {
+  const list = document.getElementById('urlItemsList');
+  const urls = config.urls || [];
+  document.getElementById('urlCount').textContent = urls.length;
+  if (!urls.length) {
+    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--txt3);font-size:11px;">No URLs added yet</div>`;
+    return;
+  }
+  list.innerHTML = urls.map(u => {
+    const sched = u.schedule ? schedulePreviewText(u.schedule) : 'No schedule';
+    return `<div class="url-item ${u.enabled?'enabled':''} ${selectedUrlId===u.id?'selected':''}" onclick="selectUrl('${u.id}')">
+      <div class="url-item-dot"></div>
+      <div class="url-item-text">
+        <div class="url-item-name">${esc(u.nickname || u.url || 'Untitled')}</div>
+        <div class="url-item-sched">${sched}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function selectUrl(id) {
+  if (selectedUrlId && selectedUrlId !== id) {
+    flushDirty();
+    await saveUrlEntryNow(selectedUrlId, true);
+  }
+  selectedUrlId = id;
+  buildUrlList();
+  renderUrlEditor(id);
+}
+
+let _testAllLinks = [];
+
+function renderUrlEditor(id) {
+  _testAllLinks = [];
+  const url = (config.urls || []).find(u => u.id === id);
+  const area = document.getElementById('urlEditorArea');
+  if (!url) {
+    area.innerHTML = `<div class="url-editor-empty"><div style="font-size:28px;opacity:0.3;">◈</div><div style="font-size:12px;">Select a source</div></div>`;
+    return;
+  }
+
+  const sched = url.schedule || { intervalMinutes: 30, startHour: 9, endHour: 17 };
+  const filters = url.filters || [];
+  const isEnabled = url.enabled !== false;
+
+  area.innerHTML = `
+  <div class="url-editor-head">
+    <span style="font-family:var(--font-display);font-size:16px;letter-spacing:1px;">${esc(url.nickname || 'URL Source')}</span>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+      <div class="url-enable-wrap ${isEnabled?'on':''}" id="urlEnableWrap" onclick="toggleUrlEnabled('${id}', this)">
+        <div class="toggle ${isEnabled?'on':''}" id="urlEnabledToggle"></div>
+        <span class="url-enable-label" id="urlEnableLabel">${isEnabled?'ON':'OFF'}</span>
+      </div>
+      <button class="btn btn-run" onclick="runNow('${id}')">▶ Run Now</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteUrl('${id}')">Delete</button>
+    </div>
+  </div>
+  <div class="url-editor-body" id="urlEditorBody_${id}">
+    <div class="fg">
+      <div class="fg-label">Nickname <span style="font-weight:300;text-transform:none;font-size:9px;margin-left:4px;color:var(--txt3);">optional</span></div>
+      <input class="inp" id="eNickname" value="${esc(url.nickname || '')}" placeholder="My source name">
+    </div>
+    <div class="fg">
+      <div class="fg-label">URL</div>
+      <input class="inp" id="eUrl" value="${esc(url.url || '')}" placeholder="https://...">
+    </div>
+    <div class="fg">
+      <div class="fg-label">Schedule</div>
+      ${renderScheduleUI(sched)}
+    </div>
+    <div class="fg">
+      <div class="fg-label-row">
+        <span class="fg-label">Link Filters</span>
+        <span class="fg-label-hint">— match link text (case-insensitive). Leave empty to capture all links.</span>
+      </div>
+      <div class="filters-list" id="filtersList">
+        ${filters.map((f,i) => `
+          <div class="filter-chip" id="fc-${i}">
+            <span class="filter-chip-text">${esc(f.text)}</span>
+            <button class="filter-chip-rm" onclick="removeFilter(${i})">×</button>
+          </div>`).join('')}
+      </div>
+      <div class="filter-add-row" style="margin-top:6px;">
+        <input class="inp inp-sm" id="newFilterInput" placeholder="Add filter term..." style="flex:1;">
+        <button class="btn btn-sm" onclick="addFilter('${id}')">+ Add</button>
+      </div>
+    </div>
+    <!-- Test area -->
+    <div class="fg">
+      <div class="fg-label-row">
+        <span class="fg-label">Test Run</span>
+        <button class="test-info-btn" id="testInfoBtn" onclick="toggleTestInfo()" title="How it works">ℹ</button>
+      </div>
+      <div class="test-info-popup" id="testInfoPopup" style="display:none;">
+        Fetches every link on the page without touching your capture history. Type a term below to preview what your filters would catch — matched links rise to the top. Hit <strong>+ Add Filter</strong> to lock it in, then run again to refine.
+      </div>
+      <div class="test-area">
+        <div class="test-status-row">
+          <button class="btn btn-run" id="testRunBtn" onclick="runTest('${id}')">
+            <span class="spin" id="testSpin" style="display:none;"></span>
+            ▶ Run Test
+          </button>
+          <span id="testStatus" style="font-size:11px;color:var(--txt3);"></span>
+        </div>
+        <div class="test-filter-row" id="testFilterRow" style="display:none;">
+          <input class="inp inp-sm" id="testFilterInput" placeholder="Preview a filter term..." style="flex:1;"
+            oninput="onTestFilterInput('${id}')"
+            onkeydown="if(event.key==='Enter'&&this.value.trim())addFilterFromTest('${id}')">
+          <button class="btn btn-sm" id="testAddFilterBtn" onclick="addFilterFromTest('${id}')" style="opacity:0.4;" disabled>+ Add Filter</button>
+        </div>
+        <div class="test-results" id="testResults"></div>
+        <div class="test-ip-note" id="testIpNote" style="display:none;">
+          <span>⚠</span> Scrapes run from your IP — if a site rate-limits or blocks the scraper, you may see the same restriction when browsing it normally.
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  attachEditorAutoSave(id);
+
+  const filterInput = document.getElementById('newFilterInput');
+  if (filterInput) {
+    filterInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); addFilter(id); }
+    });
+  }
+}
+
+function toggleTestInfo() {
+  const popup = document.getElementById('testInfoPopup');
+  if (!popup) return;
+  popup.style.display = popup.style.display === 'none' ? '' : 'none';
+}
+
+function attachEditorAutoSave(id) {
+  const body = document.getElementById(`urlEditorBody_${id}`);
+  if (!body) return;
+  // Exclude filter/test inputs — they are not config fields, only UI controls
+  const SKIP_IDS = new Set(['newFilterInput', 'testFilterInput']);
+  body.querySelectorAll('input').forEach(inp => {
+    if (SKIP_IDS.has(inp.id)) return;
+    inp.addEventListener('input', () => markDirty(id));
+    inp.addEventListener('blur', () => saveUrlEntry(id, true));
+    inp.addEventListener('change', () => saveUrlEntry(id, true));
+  });
+  body.querySelectorAll('select').forEach(sel => {
+    sel.addEventListener('change', () => saveUrlEntry(id, true));
+  });
+}
+
+async function addNewUrl() {
+  if (selectedUrlId) { flushDirty(); await saveUrlEntryNow(selectedUrlId, true); }
+  const id = 'url_' + Date.now();
+  const newUrl = { id, url: '', nickname: '', filters: [], schedule: { intervalMinutes: 60, startMinutes: 540, endMinutes: 1020 }, enabled: true };
+  if (!config.urls) config.urls = [];
+  config.urls.push(newUrl);
+  await api.saveConfig(config);
+  buildUrlList();
+  selectUrl(id);
+}
+
+function deleteUrl(id) {
+  showConfirm('DELETE SOURCE', 'This will remove this URL source and its schedule. Collected results stay in history.', async () => {
+    config.urls = (config.urls || []).filter(u => u.id !== id);
+    await api.saveConfig(config);
+    enabledUrlIds.delete(id);
+    archiveEnabledUrlIds.delete(id);
+    selectedUrlId = null;
+    buildUrlList();
+    buildUrlFilterChips();
+    document.getElementById('urlEditorArea').innerHTML = `<div class="url-editor-empty"><div style="font-size:28px;opacity:0.3;">◈</div><div style="font-size:12px;">Select a source</div></div>`;
+  });
+}
+
+function toggleUrlEnabled(id, wrapEl) {
+  wrapEl.classList.toggle('on');
+  const isOn = wrapEl.classList.contains('on');
+  const toggle = wrapEl.querySelector('.toggle');
+  const label = wrapEl.querySelector('.url-enable-label');
+  if (toggle) toggle.classList.toggle('on', isOn);
+  if (label) label.textContent = isOn ? 'ON' : 'OFF';
+  const url = (config.urls || []).find(u => u.id === id);
+  if (url) { url.enabled = isOn; api.saveConfig(config); buildUrlList(); }
+}
+
+let _saveDebounceTimers = {};
+let _dirtyTimer = null;
+
+function markDirty(id) {
+  if (_dirtyTimer) clearTimeout(_dirtyTimer);
+  _dirtyTimer = setTimeout(() => {
+    _dirtyTimer = null;
+    if (selectedUrlId === id) saveUrlEntryNow(id, true);
+  }, 2000);
+}
+
+function flushDirty() {
+  if (_dirtyTimer) {
+    clearTimeout(_dirtyTimer);
+    _dirtyTimer = null;
+    if (selectedUrlId) return saveUrlEntryNow(selectedUrlId, true);
+  }
+  return Promise.resolve();
+}
+
+async function saveUrlEntryNow(id, silent = false) {
+  if (_saveDebounceTimers[id]) clearTimeout(_saveDebounceTimers[id]);
+  return new Promise(resolve => {
+    _saveDebounceTimers[id] = setTimeout(async () => {
+      delete _saveDebounceTimers[id];
+      const url = (config.urls || []).find(u => u.id === id);
+      if (!url) { resolve(); return; }
+      const nicknameEl = document.getElementById('eNickname');
+      const urlEl = document.getElementById('eUrl');
+      const enableWrapEl = document.getElementById('urlEnableWrap');
+      if (nicknameEl) url.nickname = nicknameEl.value.trim();
+      if (urlEl) url.url = urlEl.value.trim();
+      if (enableWrapEl) url.enabled = enableWrapEl.classList.contains('on');
+      url.schedule = readScheduleFromUI() || url.schedule;
+      await api.saveConfig(config);
+      buildUrlList();
+      buildUrlFilterChips();
+      if (!silent) { renderUrlEditor(id); addLog({ type: 'success', message: `Saved: ${url.nickname || url.url}` }); }
+      resolve();
+    }, 80);
+  });
+}
+
+async function saveUrlEntry(id, silent = false) {
+  // Cancel any pending dirty timer — don't flush (which saves), just clear it.
+  // Then do a single save below. This avoids a double-write when a dirty timer was active.
+  if (_dirtyTimer) { clearTimeout(_dirtyTimer); _dirtyTimer = null; }
+  return saveUrlEntryNow(id, silent);
+}
+
+function addFilter(urlId) {
+  const input = document.getElementById('newFilterInput');
+  const text = input?.value?.trim();
+  if (!text) return;
+  const url = (config.urls || []).find(u => u.id === urlId);
+  if (!url) return;
+  if (!url.filters) url.filters = [];
+  url.filters.push({ text, exclude: false });
+  input.value = '';
+  renderUrlEditor(urlId);
+  saveUrlEntryNow(urlId, true);
+}
+
+function removeFilter(index) {
+  const url = (config.urls || []).find(u => u.id === selectedUrlId);
+  if (!url) return;
+  url.filters.splice(index, 1);
+  renderUrlEditor(selectedUrlId);
+  saveUrlEntryNow(selectedUrlId, true);
+}
+
+async function runNow(urlId) {
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const resultsNav = document.querySelector('.nav-item[data-panel="panel-results"]');
+  if (resultsNav) resultsNav.classList.add('active');
+  document.getElementById('panel-results').classList.add('active');
+
+  const urlEntry = (config.urls||[]).find(u => u.id === urlId);
+  const label = urlEntry?.nickname || urlEntry?.url || urlId;
+
+  const body = document.getElementById('resultsBody');
+  body.innerHTML = `<div class="empty-results run-now-flash" style="border-radius:0;" id="runNowPlaceholder">
+    <div class="empty-icon" style="color:var(--acc);animation:spin 1s linear infinite;display:inline-block;">◈</div>
+    <div class="empty-msg" style="color:var(--acc);">Running now...</div>
+    <div class="empty-sub">Scraping ${esc(label)}</div>
+  </div>`;
+
+  addLog({ type: 'info', message: `Running now: ${label}` });
+  const result = await api.runNow(urlId);
+
+  if (document.getElementById('runNowPlaceholder')) {
+    if (result?.ok === false) {
+      body.innerHTML = `<div class="empty-results"><div class="empty-icon" style="color:var(--acc2);">✕</div><div class="empty-msg" style="color:var(--acc2);">Scrape failed</div><div class="empty-sub">Check the server log below for details</div></div>`;
+    } else {
+      body.innerHTML = `<div class="empty-results"><div class="empty-icon">◈</div><div class="empty-msg">No new links found</div><div class="empty-sub">All links from ${esc(label)} were already captured, or no links matched your filters</div></div>`;
+    }
+    setTimeout(() => renderResults(), 100);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TEST RUN
+// ═══════════════════════════════════════════════════════════════════
+async function runTest(urlId) {
+  const url = (config.urls || []).find(u => u.id === urlId);
+  if (!url || !url.url) {
+    const status = document.getElementById('testStatus');
+    if (status) status.textContent = 'No URL set.';
+    return;
+  }
+
+  await saveUrlEntry(urlId, true);
+
+  const spin = document.getElementById('testSpin');
+  const btn  = document.getElementById('testRunBtn');
+  const status = document.getElementById('testStatus');
+  const resultsEl = document.getElementById('testResults');
+  const filterRow = document.getElementById('testFilterRow');
+  const ipNote = document.getElementById('testIpNote');
+
+  spin.style.display = '';
+  btn.disabled = true;
+  status.textContent = 'Scraping...';
+  resultsEl.className = 'test-results';
+  filterRow.style.display = 'none';
+
+  const result = await api.runTest({ ...url, filters: [] }, { affectMemory: false });
+
+  spin.style.display = 'none';
+  btn.disabled = false;
+
+  if (!result.ok) {
+    status.textContent = 'Scrape failed — is the server running?';
+    return;
+  }
+
+  _testAllLinks = result.entry.links;
+
+  const input = document.getElementById('testFilterInput');
+  if (input) input.value = '';
+  const addBtn = document.getElementById('testAddFilterBtn');
+  if (addBtn) { addBtn.disabled = true; addBtn.style.opacity = '0.4'; }
+
+  filterRow.style.display = '';
+  if (ipNote) ipNote.style.display = '';
+  renderTestLinks(urlId);
+}
+
+function onTestFilterInput(urlId) {
+  const input = document.getElementById('testFilterInput');
+  const addBtn = document.getElementById('testAddFilterBtn');
+  const term = input?.value?.trim() || '';
+  if (addBtn) { addBtn.disabled = !term; addBtn.style.opacity = term ? '1' : '0.4'; }
+  renderTestLinks(urlId);
+}
+
+function renderTestLinks(urlId) {
+  const url = (config.urls || []).find(u => u.id === urlId);
+  const resultsEl = document.getElementById('testResults');
+  const status = document.getElementById('testStatus');
+  if (!resultsEl) return;
+
+  const input = document.getElementById('testFilterInput');
+  const preview = (input?.value?.trim() || '').toLowerCase();
+  const realFilters = (url?.filters || []).map(f => f.text.toLowerCase());
+
+  const isCaptured = l => realFilters.length > 0 && realFilters.some(f =>
+    (l.title || '').toLowerCase().includes(f) || (l.url || '').toLowerCase().includes(f));
+  const matchesPreview = l => !!preview && (
+    (l.title || '').toLowerCase().includes(preview) ||
+    (l.url  || '').toLowerCase().includes(preview));
+
+  // Sort into 3 buckets: preview-matched → uncaptured → already captured
+  const matchedLinks    = _testAllLinks.filter(l => matchesPreview(l) && !isCaptured(l));
+  const uncapturedLinks = _testAllLinks.filter(l => !matchesPreview(l) && !isCaptured(l));
+  const capturedLinks   = _testAllLinks.filter(l => isCaptured(l));
+
+  const total = _testAllLinks.length;
+  const capturedCount = capturedLinks.length;
+  const previewCount  = matchedLinks.length;
+  const uncaptured    = total - capturedCount;
+
+  if (preview) {
+    status.textContent = `${total} total · ${capturedCount} captured · ${previewCount} match "${preview}"`;
+  } else if (realFilters.length > 0) {
+    status.textContent = `${total} total · ${capturedCount} captured · ${uncaptured} remaining`;
+  } else {
+    status.textContent = `${total} total`;
+  }
+
+  if (!total) {
+    resultsEl.className = 'test-results show';
+    resultsEl.innerHTML = `<div style="color:var(--txt3);font-size:11px;padding:10px;">No links found on page.</div>`;
+    return;
+  }
+
+  const renderRow = (l, i, cls) => {
+    const badge = cls === 'captured'
+      ? `<span style="font-size:9px;color:var(--acc4);white-space:nowrap;">✓ captured</span>`
+      : cls === 'matched'
+        ? `<button class="test-add-btn matched-btn" onclick="addFilterFromTest('${urlId}')">+ Add Filter</button>`
+        : '';
+    return `<div class="test-link-row ${cls}">
+      <span class="test-link-num">${i}</span>
+      <div class="test-link-body">
+        <div class="test-link-title">${esc(l.title || 'Untitled')}</div>
+        <div class="test-link-url" onclick="openLink('${esc(l.url)}')" title="${esc(l.url)}">${esc(l.url)}</div>
+      </div>
+      ${badge}
+    </div>`;
+  };
+
+  let html = '';
+  let counter = 1;
+
+  if (matchedLinks.length > 0) {
+    html += matchedLinks.map(l => renderRow(l, counter++, 'matched')).join('');
+    if (uncapturedLinks.length > 0 || capturedLinks.length > 0) {
+      html += `<div class="test-divider">— ${matchedLinks.length} match${matchedLinks.length!==1?'es':''} above —</div>`;
+    }
+  }
+
+  html += uncapturedLinks.map(l => renderRow(l, counter++, '')).join('');
+
+  if (capturedLinks.length > 0) {
+    html += `<div class="test-divider">— ${capturedLinks.length} already captured —</div>`;
+    html += capturedLinks.map(l => renderRow(l, counter++, 'captured')).join('');
+  }
+
+  resultsEl.className = 'test-results show';
+  resultsEl.innerHTML = html;
+}
+
+function addFilterFromTest(urlId) {
+  const input = document.getElementById('testFilterInput');
+  const text = input?.value?.trim();
+  if (!text) return;
+  const url = (config.urls || []).find(u => u.id === urlId);
+  if (!url) return;
+  if (!url.filters) url.filters = [];
+  if (!url.filters.some(f => f.text.toLowerCase() === text.toLowerCase())) {
+    url.filters.push({ text, exclude: false });
+    saveUrlEntryNow(urlId, true);
+    const fl = document.getElementById('filtersList');
+    if (fl) {
+      fl.innerHTML = url.filters.map((f, i) => `
+        <div class="filter-chip" id="fc-${i}">
+          <span class="filter-chip-text">${esc(f.text)}</span>
+          <button class="filter-chip-rm" onclick="removeFilter(${i})">×</button>
+        </div>`).join('');
+    }
+  }
+  input.value = '';
+  const addBtn = document.getElementById('testAddFilterBtn');
+  if (addBtn) { addBtn.disabled = true; addBtn.style.opacity = '0.4'; }
+  renderTestLinks(urlId);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════════
+function applySettingsToUI() {
+  if (config.notifyOnFail) document.getElementById('tNotifyFail').classList.add('on');
+}
+
+let _settingsTimer = null;
+function autoSaveSettings() {
+  if (_settingsTimer) clearTimeout(_settingsTimer);
+  _settingsTimer = setTimeout(async () => {
+    _settingsTimer = null;
+    config.notifyOnFail = document.getElementById('tNotifyFail').classList.contains('on');
+    await api.saveConfig(config);
+    const note = document.getElementById('settSavedNote');
+    if (note) { note.classList.add('show'); setTimeout(() => note.classList.remove('show'), 1800); }
+  }, 300);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOG
+// ═══════════════════════════════════════════════════════════════════
+function addLog({ type, message }) {
+  const el = document.getElementById('logEntries');
+  const now = new Date();
+  const ts = [now.getHours(), now.getMinutes(), now.getSeconds()].map(n => String(n).padStart(2,'0')).join(':');
+  const div = document.createElement('div');
+  div.className = `le ${type}`;
+  div.innerHTML = `<span class="le-ts">${ts}</span>${esc(message)}`;
+  el.appendChild(div);
+  while (el.children.length > 600) el.removeChild(el.firstChild);
+  if (logAutoScroll) el.scrollTop = el.scrollHeight;
+}
+
+function clearLog() { document.getElementById('logEntries').innerHTML = ''; }
+
+function toggleLog() {
+  const panel = document.getElementById('logPanel');
+  const btn = document.getElementById('logToggleBtn');
+  const collapsed = panel.classList.toggle('collapsed');
+  btn.innerHTML = collapsed ? '&#9658;' : '&#9660;';
+}
+
+function initLogPanel() {
+  const panel    = document.getElementById('logPanel');
+  const handle   = document.getElementById('logResizeHandle');
+  const entries  = document.getElementById('logEntries');
+  const statusEl = document.getElementById('logScrollStatus');
+
+  entries.addEventListener('scroll', () => {
+    const atBottom = entries.scrollHeight - entries.scrollTop - entries.clientHeight < 16;
+    if (atBottom !== logAutoScroll) {
+      logAutoScroll = atBottom;
+      if (statusEl) { statusEl.textContent = logAutoScroll ? '↓ LIVE' : '↑ PAUSED'; statusEl.classList.toggle('live', logAutoScroll); }
+    }
+  });
+
+  let dragging = false, startY = 0, startH = 0;
+  handle.addEventListener('mousedown', e => {
+    dragging = true; startY = e.clientY; startH = panel.offsetHeight;
+    document.body.style.cursor = 'ns-resize'; document.body.style.userSelect = 'none'; e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const newH = Math.max(30, Math.min(600, startH + (startY - e.clientY)));
+    panel.style.height = newH + 'px';
+    if (newH > 30 && panel.classList.contains('collapsed')) {
+      panel.classList.remove('collapsed');
+      document.getElementById('logToggleBtn').innerHTML = '&#9660;';
+    }
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return; dragging = false;
+    document.body.style.cursor = ''; document.body.style.userSelect = '';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONFIRM DIALOG
+// ═══════════════════════════════════════════════════════════════════
+function showConfirm(title, msg, cb) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  document.getElementById('confirmOverlay').classList.add('show');
+  document.getElementById('confirmOkBtn').onclick = () => { closeConfirm(); cb(); };
+}
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('show');
+}
+
+// Clear captured memory only (seen links) — results history stays
+function confirmClearCaptured() {
+  showConfirm('CLEAR CAPTURED MEMORY',
+    'This removes the memory of which links have been seen. Future runs will treat all links as new — your result history is unaffected.',
+    async () => {
+      await api.clearSeenLinks();
+      await updateArchiveStats();
+      addLog({ type: 'warn', message: 'Captured link memory cleared.' });
+    });
+}
+
+// Clear everything: results + seen links
+function confirmClearAll() {
+  showConfirm('CLEAR ALL HISTORY',
+    'This permanently deletes all collected results and capture memory. This cannot be undone.',
+    async () => {
+      await api.clearAllResults();
+      await api.clearSeenLinks();
+      results = [];
+      collapsedGroups.clear();
+      collapsedDays.clear();
+      renderResults();
+      renderArchive();
+      await updateArchiveStats();
+      addLog({ type: 'warn', message: 'All history cleared.' });
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UTIL
+// ═══════════════════════════════════════════════════════════════════
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+init();
+</script>
+</body>
+</html>

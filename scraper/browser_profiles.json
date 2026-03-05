@@ -1,0 +1,74 @@
+{
+  "wikipedia.org": {
+    "domain": "wikipedia.org",
+    "screenWidth": 1536,
+    "screenHeight": 864,
+    "timezone": "America/Chicago",
+    "chromeVersion": "125",
+    "canvasNoiseSeed": 363,
+    "hardwareConcurrency": 8,
+    "deviceMemory": 8,
+    "platform": "Win32",
+    "createdAt": "2026-02-20T23:21:33.529Z"
+  },
+  "linkedin.com": {
+    "domain": "linkedin.com",
+    "screenWidth": 2560,
+    "screenHeight": 1440,
+    "timezone": "America/Los_Angeles",
+    "chromeVersion": "126",
+    "canvasNoiseSeed": 995,
+    "hardwareConcurrency": 8,
+    "deviceMemory": 4,
+    "platform": "Win32",
+    "createdAt": "2026-02-21T07:08:42.058Z"
+  },
+  "a": {
+    "domain": "a",
+    "screenWidth": 1920,
+    "screenHeight": 1080,
+    "timezone": "America/Chicago",
+    "chromeVersion": "122",
+    "canvasNoiseSeed": 33,
+    "hardwareConcurrency": 8,
+    "deviceMemory": 4,
+    "platform": "Win32",
+    "createdAt": "2026-02-21T07:30:30.065Z"
+  },
+  "nike.com": {
+    "domain": "nike.com",
+    "screenWidth": 1920,
+    "screenHeight": 1080,
+    "timezone": "America/Chicago",
+    "chromeVersion": "124",
+    "canvasNoiseSeed": 469,
+    "hardwareConcurrency": 4,
+    "deviceMemory": 8,
+    "platform": "Win32",
+    "createdAt": "2026-02-21T07:49:09.164Z"
+  },
+  "inteltechniques.com": {
+    "domain": "inteltechniques.com",
+    "screenWidth": 1440,
+    "screenHeight": 900,
+    "timezone": "America/Denver",
+    "chromeVersion": "124",
+    "canvasNoiseSeed": 497,
+    "hardwareConcurrency": 16,
+    "deviceMemory": 8,
+    "platform": "Win32",
+    "createdAt": "2026-03-03T22:42:07.477Z"
+  },
+  "ibm.com": {
+    "domain": "ibm.com",
+    "screenWidth": 2560,
+    "screenHeight": 1440,
+    "timezone": "Europe/Paris",
+    "chromeVersion": "123",
+    "canvasNoiseSeed": 5,
+    "hardwareConcurrency": 12,
+    "deviceMemory": 4,
+    "platform": "Win32",
+    "createdAt": "2026-03-04T19:21:29.744Z"
+  }
+}
