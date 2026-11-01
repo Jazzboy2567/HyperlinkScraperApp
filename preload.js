@@ -18,6 +18,16 @@ contextBridge.exposeInMainWorld('api', {
   clearSeenLinks: () => ipcRenderer.invoke('clear-seen-links'),
   clearAllResults: () => ipcRenderer.invoke('clear-all-results'),
   getUserDataPath: () => ipcRenderer.invoke('get-user-data-path'),
+  getRssInfo: () => ipcRenderer.invoke('get-rss-info'),
+  getScraperInfo: () => ipcRenderer.invoke('get-scraper-info'),
+  updateScraper: () => ipcRenderer.invoke('update-scraper'),
+
+  listExtensions: () => ipcRenderer.invoke('list-extensions'),
+  setExtensionEnabled: (id, on) => ipcRenderer.invoke('set-extension-enabled', id, on),
+  reloadExtensions: () => ipcRenderer.invoke('reload-extensions'),
+  getExtensionsDir: () => ipcRenderer.invoke('get-extensions-dir'),
+  openExtensionsDir: () => ipcRenderer.invoke('open-extensions-dir'),
+  rerankResults: () => ipcRenderer.invoke('rerank-results'),
 
   onServerLog: (cb) => ipcRenderer.on('server-log', (_, d) => cb(d)),
   onServerStatus: (cb) => ipcRenderer.on('server-status', (_, s) => cb(s)),

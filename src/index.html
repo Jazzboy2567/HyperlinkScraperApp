@@ -586,6 +586,41 @@ a:hover { text-decoration: underline; }
 .sett-saved-note.show { opacity: 1; }
 
 /* ═══════════════════════════════════════════════
+   EXTENSIONS PANEL
+═══════════════════════════════════════════════ */
+.panel-sub { font-size: 11px; color: var(--txt3); align-self: center; }
+.nav-badge { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 2px var(--bg1); }
+.ext-body { flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.ext-warn { display: flex; gap: 10px; align-items: flex-start; background: rgba(255,85,102,0.06); border: 1px solid rgba(255,85,102,0.22); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: var(--txt2); line-height: 1.55; }
+.ext-warn svg { width: 16px; height: 16px; color: var(--acc2); flex-shrink: 0; margin-top: 1px; }
+.ext-warn b { color: var(--txt); }
+.ext-grid { display: flex; flex-direction: column; gap: 10px; }
+.ext-card { background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; gap: 12px; transition: border-color .12s, background .12s; }
+.ext-card:hover { border-color: var(--line2); }
+.ext-card.on { border-color: rgba(232,255,71,0.28); background: linear-gradient(var(--bg2), var(--bg2)) padding-box, rgba(232,255,71,0.02); }
+.ext-ico { width: 38px; height: 38px; border-radius: 8px; background: var(--bg3); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--txt3); flex-shrink: 0; }
+.ext-card.on .ext-ico { color: var(--acc); border-color: rgba(232,255,71,0.3); background: rgba(232,255,71,0.06); }
+.ext-ico svg { width: 18px; height: 18px; }
+.ext-main { flex: 1; min-width: 0; }
+.ext-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ext-name { font-size: 13px; font-weight: 600; color: var(--txt); font-family: var(--font-sans); }
+.ext-ver { font-size: 10px; color: var(--txt3); }
+.ext-pill { font-size: 9px; text-transform: uppercase; letter-spacing: .5px; padding: 1px 6px; border-radius: 8px; background: var(--bg3); color: var(--txt3); border: 1px solid var(--line); }
+.ext-pill.builtin { color: var(--acc3); border-color: rgba(77,208,255,0.3); }
+.ext-pill.yours { color: var(--acc4); border-color: rgba(127,255,154,0.3); }
+.ext-desc { font-size: 11px; color: var(--txt2); line-height: 1.55; margin-top: 6px; }
+.ext-meta { font-size: 10px; color: var(--txt3); margin-top: 6px; }
+.ext-err { font-size: 10px; color: var(--acc2); margin-top: 6px; }
+.ext-right { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; flex-shrink: 0; }
+.ext-state { font-size: 9px; text-transform: uppercase; letter-spacing: .5px; color: var(--txt3); }
+.ext-card.on .ext-state { color: var(--acc); }
+.ext-addnew { display: flex; gap: 12px; align-items: center; border: 1px dashed var(--line2); border-radius: 8px; padding: 14px; cursor: pointer; transition: border-color .12s, background .12s; }
+.ext-addnew:hover { border-color: var(--txt3); background: var(--bg1); }
+.ext-addnew-icon { width: 38px; height: 38px; border-radius: 8px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--txt3); flex-shrink: 0; }
+.ext-addnew-title { font-size: 12px; font-weight: 600; color: var(--txt2); font-family: var(--font-sans); }
+.ext-addnew-sub { font-size: 10px; color: var(--txt3); margin-top: 2px; line-height: 1.45; }
+
+/* ═══════════════════════════════════════════════
    SERVER LOG
 ═══════════════════════════════════════════════ */
 .log-panel {
@@ -686,7 +721,14 @@ a:hover { text-decoration: underline; }
     <button class="nav-item" data-panel="panel-archive" title="Archive">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
     </button>
+    <button class="nav-item" data-panel="panel-extensions" title="Extensions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.7 2.7 0 1 1 0 5.4H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.7 2.7 0 1 1 5.4 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg>
+    </button>
     <div class="nav-spacer"></div>
+    <button class="nav-item" data-panel="panel-updates" title="Updates">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+      <span class="nav-badge" id="updateDot" style="display:none;"></span>
+    </button>
     <button class="nav-item" data-panel="panel-settings" title="Settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
@@ -785,6 +827,61 @@ a:hover { text-decoration: underline; }
       </div>
     </div>
 
+    <!-- EXTENSIONS PANEL -->
+    <div class="panel" id="panel-extensions">
+      <div class="panel-head">
+        <span class="panel-title">EXTENSIONS</span>
+        <span class="panel-sub" id="extCount"></span>
+        <div class="panel-head-right">
+          <button class="btn btn-sm" onclick="openExtensionsDir()">Open folder</button>
+          <button class="btn btn-sm" onclick="reloadExtensions()">↻ Reload</button>
+        </div>
+      </div>
+      <div class="ext-body">
+        <div class="ext-warn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>An enabled extension runs as a program with <b>full access to your computer</b>. Only enable extensions you wrote or trust — code is never run while an extension is off.</span>
+        </div>
+        <div id="extCards" class="ext-grid"></div>
+        <div class="ext-addnew" onclick="openExtensionsDir()">
+          <div class="ext-addnew-icon">+</div>
+          <div>
+            <div class="ext-addnew-title">Add your own extension</div>
+            <div class="ext-addnew-sub">Drop a folder (manifest.json + index.js) into the extensions folder, then Reload. See README.txt there.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPDATES PANEL -->
+    <div class="panel" id="panel-updates">
+      <div class="panel-head">
+        <span class="panel-title">UPDATES</span>
+      </div>
+      <div class="settings-body">
+        <div class="sett-card">
+          <div class="sett-card-head">Scraper</div>
+          <div class="sett-row">
+            <div class="sett-lbl-wrap">
+              <span class="sett-lbl">Source</span>
+              <span class="sett-lbl-hint" id="scraperPath">—</span>
+            </div>
+            <span id="scraperSrc" style="font-size:11px;color:var(--txt2);"></span>
+          </div>
+          <div class="sett-row">
+            <div class="sett-lbl-wrap">
+              <span class="sett-lbl">Update scraper</span>
+              <span class="sett-lbl-hint">Pull the latest scraper from GitHub (safe: won't overwrite local edits), then restart it</span>
+            </div>
+            <span style="display:flex;align-items:center;gap:10px;">
+              <span id="updateMsg" style="font-size:11px;color:var(--txt3);"></span>
+              <button class="btn btn-run" id="updateBtn" onclick="updateScraper()">Check for updates</button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- SETTINGS PANEL -->
     <div class="panel" id="panel-settings">
       <div class="panel-head">
@@ -812,6 +909,26 @@ a:hover { text-decoration: underline; }
               <span class="sett-lbl-hint">AppData / userData folder</span>
             </div>
             <span id="dataPath" style="font-size:10px;color:var(--txt3);"></span>
+          </div>
+        </div>
+        <div class="sett-card">
+          <div class="sett-card-head">RSS Feed</div>
+          <div class="sett-row">
+            <div class="sett-lbl-wrap">
+              <span class="sett-lbl">Feed URL</span>
+              <span class="sett-lbl-hint">All collected job links, for the RSS-to-jobs matcher. JSON at /feed.json</span>
+            </div>
+            <span style="display:flex;align-items:center;gap:8px;">
+              <span id="rssUrl" style="font-size:11px;color:var(--txt2);font-family:monospace;"></span>
+              <button class="btn btn-sm" onclick="copyRssUrl()">Copy</button>
+            </span>
+          </div>
+          <div class="sett-row">
+            <div class="sett-lbl-wrap">
+              <span class="sett-lbl">Items in feed now</span>
+              <span class="sett-lbl-hint">Unique job links currently served</span>
+            </div>
+            <span id="rssCount" style="font-size:11px;color:var(--txt3);"></span>
           </div>
         </div>
       </div>
@@ -860,8 +977,118 @@ let archiveEnabledUrlIds = new Set();
 let selectedUrlId = null;
 let collapsedGroups = new Set();   // uses namespaced IDs: res_rg_X or arc_rg_X
 let collapsedDays = new Set();     // uses namespaced IDs: res_ds_X or arc_ds_X
+let resDaysDefaulted = false;      // one-time: collapse all but newest day on first render
+let arcDaysDefaulted = false;
 let logAutoScroll = true;
 let _capturedLinks = [];           // for captured modal
+
+// ── Persisted source-toggle state ──────────────────────────────────────────
+// The results/archive URL toggles (top of those views) used to reset to
+// "all on" every launch because init() rebuilds the enabled sets from scratch.
+// We now remember which sources you turned OFF in localStorage, keyed per view,
+// and re-apply them on load. Storing the HIDDEN set (not the enabled set) means
+// a brand-new source still shows up by default.
+const LS_HIDDEN_RESULTS = 'lw_hiddenResultSources';
+const LS_HIDDEN_ARCHIVE = 'lw_hiddenArchiveSources';
+function lsGetSet(key) { try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); } catch { return new Set(); } }
+function lsSaveSet(key, set) { try { localStorage.setItem(key, JSON.stringify([...set])); } catch {} }
+
+function copyRssUrl() {
+  const url = window._rssUrl || '';
+  if (!url) return;
+  try { navigator.clipboard.writeText(url); } catch {}
+}
+
+async function updateScraper() {
+  const btn = document.getElementById('updateBtn');
+  const msg = document.getElementById('updateMsg');
+  btn.disabled = true; msg.style.color = 'var(--txt3)'; msg.textContent = 'Checking…';
+  try {
+    const r = await api.updateScraper();
+    msg.style.color = r.ok ? 'var(--txt2)' : '#e58';
+    msg.textContent = r.ok ? (r.upToDate ? 'Up to date ✓' : 'Updated & restarted ✓') : 'Update failed (see details)';
+    if (!r.ok || !r.upToDate) alert(r.message);
+  } catch (e) {
+    msg.style.color = '#e58'; msg.textContent = 'Error';
+    alert('Update error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Extensions ───────────────────────────────────────────────────────────────
+async function renderExtensions() {
+  const box = document.getElementById('extCards');
+  if (!box) return;
+  let exts = [];
+  try { exts = await api.listExtensions(); } catch { box.innerHTML = ''; return; }
+
+  const countEl = document.getElementById('extCount');
+  if (countEl) {
+    const active = exts.filter(x => x.enabled && !x.error).length;
+    countEl.textContent = exts.length ? `${exts.length} installed · ${active} active` : '';
+  }
+  if (!exts.length) {
+    box.innerHTML = `<div style="font-size:11px;color:var(--txt3);padding:4px 2px;">No extensions found yet.</div>`;
+    return;
+  }
+
+  const puzzle = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.7 2.7 0 1 1 0 5.4H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.7 2.7 0 1 1 5.4 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg>`;
+  box.innerHTML = exts.map(x => {
+    const srcClass = x.source === 'user' ? 'yours' : 'builtin';
+    const srcLabel = x.source === 'user' ? 'yours' : 'built-in';
+    const err = x.error ? `<div class="ext-err">⚠ ${esc(x.error)}</div>` : '';
+    return `<div class="ext-card ${x.enabled ? 'on' : ''}">
+      <div class="ext-ico">${puzzle}</div>
+      <div class="ext-main">
+        <div class="ext-top">
+          <span class="ext-name">${esc(x.name)}</span>
+          <span class="ext-ver">v${esc(x.version)}</span>
+          <span class="ext-pill ${srcClass}">${srcLabel}</span>
+          <span class="ext-pill">${esc(x.type)}</span>
+        </div>
+        <div class="ext-desc">${esc(x.description || '')}</div>
+        <div class="ext-meta">by ${esc(x.author)}</div>
+        ${err}
+      </div>
+      <div class="ext-right">
+        <div class="toggle ${x.enabled ? 'on' : ''}"
+             onclick="this.classList.toggle('on'); toggleExtension('${esc(x.id)}', this.classList.contains('on'))"></div>
+        <span class="ext-state">${x.enabled ? 'enabled' : 'disabled'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleExtension(id, on) {
+  try { await api.setExtensionEnabled(id, on); } catch (e) { alert('Could not toggle: ' + e.message); return; }
+  await applyExtensionsToResults();
+}
+
+async function reloadExtensions() {
+  try { await api.reloadExtensions(); } catch {}
+  await applyExtensionsToResults();
+}
+
+// Re-run the enabled rankers over the results already on screen, then refresh.
+// This is what makes turning an extension on take effect immediately — each
+// search's links get re-sorted/annotated in place.
+async function applyExtensionsToResults() {
+  const countEl = document.getElementById('extCount');
+  const prev = countEl ? countEl.textContent : '';
+  try {
+    if (countEl) countEl.textContent = 'Applying to results…';
+    await api.rerankResults();
+    results = await api.getResults();
+    renderResults();
+    renderArchive();
+  } catch (_) {}
+  renderExtensions();   // restores the count line and card states
+}
+
+async function openExtensionsDir() {
+  try { await api.openExtensionsDir(); } catch {}
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // INIT
@@ -874,6 +1101,9 @@ async function init() {
   buildUrlList();
   enabledUrlIds = new Set((config.urls || []).map(u => u.id));
   archiveEnabledUrlIds = new Set((config.urls || []).map(u => u.id));
+  // Re-apply the sources you previously turned off (persisted across launches).
+  lsGetSet(LS_HIDDEN_RESULTS).forEach(id => enabledUrlIds.delete(id));
+  lsGetSet(LS_HIDDEN_ARCHIVE).forEach(id => archiveEnabledUrlIds.delete(id));
   buildUrlFilterChips();
   renderResults();
   renderArchive();
@@ -886,9 +1116,10 @@ async function init() {
   api.onServerStatus(s => updateServerUI(s));
   api.onNewResults(entry => {
     results.unshift(entry);
-    // If this source hasn't been seen before, show it by default
-    if (!enabledUrlIds.has(entry.urlId)) enabledUrlIds.add(entry.urlId);
-    if (!archiveEnabledUrlIds.has(entry.urlId)) archiveEnabledUrlIds.add(entry.urlId);
+    // If this source hasn't been seen before, show it by default — unless you
+    // previously turned it off (respect the persisted hidden set).
+    if (!enabledUrlIds.has(entry.urlId) && !lsGetSet(LS_HIDDEN_RESULTS).has(entry.urlId)) enabledUrlIds.add(entry.urlId);
+    if (!archiveEnabledUrlIds.has(entry.urlId) && !lsGetSet(LS_HIDDEN_ARCHIVE).has(entry.urlId)) archiveEnabledUrlIds.add(entry.urlId);
     renderResults();
     renderArchive();
     updateArchiveStats();
@@ -903,6 +1134,7 @@ async function init() {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById(btn.dataset.panel).classList.add('active');
+      if (btn.dataset.panel === 'panel-extensions') renderExtensions();
     });
   });
 
@@ -936,6 +1168,27 @@ async function init() {
   const dataPath = await api.getUserDataPath();
   document.getElementById('dataPath').textContent = dataPath;
 
+  // RSS feed info (served by the main process for the RSS-to-jobs matcher)
+  try {
+    const rss = await api.getRssInfo();
+    window._rssUrl = rss.url;
+    const urlEl = document.getElementById('rssUrl');
+    const cntEl = document.getElementById('rssCount');
+    if (urlEl) urlEl.textContent = rss.url;
+    if (cntEl) cntEl.textContent = rss.count + ' links';
+  } catch {}
+
+  // Scraper source info
+  try {
+    const info = await api.getScraperInfo();
+    const srcEl = document.getElementById('scraperSrc');
+    const pathEl = document.getElementById('scraperPath');
+    if (srcEl) srcEl.textContent = info.usingMain ? 'main project (live, single source)' : 'bundled copy';
+    if (pathEl) pathEl.textContent = info.path;
+  } catch {}
+
+  renderExtensions();
+
   initLogPanel();
 
   document.addEventListener('visibilitychange', () => {
@@ -962,8 +1215,15 @@ function updateServerUI(status) {
   const pill = document.getElementById('serverPill');
   const label = document.getElementById('serverLabel');
   pill.className = `server-pill ${status}`;
-  const map = { running: 'SERVER RUNNING', starting: 'STARTING...', stopped: 'SERVER OFF', error: 'SERVER ERROR' };
+  const map = { running: 'SCRAPER ON', starting: 'WAKING…', stopped: 'SCRAPER IDLE', error: 'SCRAPER ERROR' };
+  const tip = {
+    running: 'Scraper is running. Click to let it sleep when idle.',
+    starting: 'Starting the scraper…',
+    stopped: 'Asleep to save memory — scheduled & manual scrapes still wake it automatically. Click to keep it running.',
+    error: 'Scraper error — see the log.',
+  };
   label.textContent = map[status] || status.toUpperCase();
+  pill.title = tip[status] || '';
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1022,7 +1282,7 @@ function renderResults() {
       html += `<div class="day-section ${isOpen?'open':''}" id="${dsId}">`;
       html += `<div class="day-header" onclick="toggleDaySection('${dsId}')"><span class="day-chevron">&#9658;</span><span class="day-label">${esc(group.name)}</span><span class="day-count">${totalLinks} link${totalLinks!==1?'s':''}</span></div>`;
       html += `<div class="day-section-body">`;
-      group.entries.forEach(e => { html += renderRunGroup(e, 'res'); });
+      if (isOpen) group.entries.forEach(e => { html += renderRunGroup(e, 'res'); });
       html += `</div></div>`;
     });
   } else {
@@ -1036,6 +1296,13 @@ function renderResults() {
       dayMap[key].entries.push(entry);
     });
 
+    // First render: collapse every day except the newest, so a long history
+    // doesn't build thousands of rows up front. The user's later toggles win.
+    if (!resDaysDefaulted) {
+      dayOrder.slice(1).forEach(k => collapsedDays.add('res_ds_' + k));
+      resDaysDefaulted = true;
+    }
+
     dayOrder.forEach(key => {
       const { date, entries } = dayMap[key];
       const totalLinks = entries.reduce((n, e) => n + e.links.filter(filterLinkText).length, 0);
@@ -1047,7 +1314,7 @@ function renderResults() {
       html += `<div class="day-header" onclick="toggleDaySection('${dsId}')"><span class="day-chevron">&#9658;</span><span class="day-label">${formatDate(date)}</span><span class="day-count">${totalLinks} link${totalLinks!==1?'s':''}</span></div>`;
       html += `<div class="day-section-body">`;
       // Each run is shown separately with its own time + source label
-      entries.forEach(e => { html += renderRunGroup(e, 'res'); });
+      if (isOpen) entries.forEach(e => { html += renderRunGroup(e, 'res'); });
       html += `</div></div>`;
     });
   }
@@ -1056,11 +1323,14 @@ function renderResults() {
 }
 
 function toggleDaySection(dsId) {
-  const el = document.getElementById(dsId);
-  if (!el) return;
-  el.classList.toggle('open');
-  if (el.classList.contains('open')) collapsedDays.delete(dsId);
+  const isArc = dsId.startsWith('arc_');
+  const bodyId = isArc ? 'archiveBody' : 'resultsBody';
+  const st = document.getElementById(bodyId)?.scrollTop || 0;
+  if (collapsedDays.has(dsId)) collapsedDays.delete(dsId);
   else collapsedDays.add(dsId);
+  // Re-render so collapsed sections don't keep their link rows in the DOM.
+  if (isArc) renderArchive(); else renderResults();
+  const nb = document.getElementById(bodyId); if (nb) nb.scrollTop = st;
 }
 
 // ns = 'res' or 'arc' — namespace to avoid duplicate IDs between panels
@@ -1083,12 +1353,19 @@ function renderRunGroup(entry, ns, linksOverride) {
   html += `<span class="run-count">${links.length} link${links.length!==1?'s':''}</span>`;
   html += `</div>`;
   html += `<div class="run-body">`;
-  links.forEach((link, i) => {
+  // Only build the (heavy) link rows for groups that are actually open. Collapsed
+  // groups render just the header; rows are built on expand (toggle re-renders).
+  if (isOpen) links.forEach((link, i) => {
     html += `<div class="link-row">`;
     html += `<span class="link-num">${i+1}</span>`;
+    if (typeof link.score === 'number') {
+      const c = link.score > 0 ? 'var(--acc)' : (link.score < 0 ? '#e58' : 'var(--txt3)');
+      html += `<span class="link-score" title="Resume-match score" style="flex:none;min-width:30px;text-align:center;font-weight:700;font-size:12px;color:${c};">${link.score}</span>`;
+    }
     html += `<div class="link-content">`;
     html += `<div class="link-title">${esc(link.title || 'Untitled')}</div>`;
     html += `<div class="link-url" onclick="openLink('${esc(link.url)}')" title="${esc(link.url)}">${esc(link.url)}</div>`;
+    html += badgesHtml(link);
     html += `</div>`;
     html += `<button class="link-open-btn" onclick="openLink('${esc(link.url)}')">open ↗</button>`;
     html += `</div>`;
@@ -1098,11 +1375,30 @@ function renderRunGroup(entry, ns, linksOverride) {
 }
 
 function toggleRunGroup(gid) {
-  const el = document.getElementById(gid);
-  if (!el) return;
-  el.classList.toggle('open');
-  if (el.classList.contains('open')) collapsedGroups.delete(gid);
+  const isArc = gid.startsWith('arc_');
+  const bodyId = isArc ? 'archiveBody' : 'resultsBody';
+  const st = document.getElementById(bodyId)?.scrollTop || 0;
+  if (collapsedGroups.has(gid)) collapsedGroups.delete(gid);
   else collapsedGroups.add(gid);
+  if (isArc) renderArchive(); else renderResults();
+  const nb = document.getElementById(bodyId); if (nb) nb.scrollTop = st;
+}
+
+// Badges a ranker may attach to a link (resume-match sets these).
+function badgesHtml(link) {
+  const skills = Array.isArray(link.matchedSkills) && link.matchedSkills.length
+    ? link.matchedSkills.join(', ') : '';
+  const badges = Array.isArray(link.badges) ? link.badges : [];
+  if (!badges.length && !skills) return '';
+  const color = b =>
+    (b === 'no-login' || b === 'entry-level') ? 'background:rgba(126,226,154,0.15);color:#7ee29a;'
+    : (b === 'senior' || b === 'clearance')   ? 'background:rgba(255,155,155,0.12);color:#ff9b9b;'
+    : 'background:rgba(232,207,126,0.14);color:#e8cf7e;';
+  const chips = badges.map(b =>
+    `<span style="display:inline-block;padding:0 6px;border-radius:9px;font-size:9px;margin-right:4px;${color(b)}">${esc(b)}</span>`
+  ).join('');
+  const sk = skills ? `<span style="font-size:10px;color:var(--txt3);">${esc(skills)}</span>` : '';
+  return `<div style="margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:2px;">${chips}${sk}</div>`;
 }
 
 function openLink(url) { api.openExternal(url); }
@@ -1134,6 +1430,11 @@ function renderArchive() {
     (l.title || '').toLowerCase().includes(archiveFilter) ||
     (l.url || '').toLowerCase().includes(archiveFilter);
 
+  if (!arcDaysDefaulted) {
+    dayOrder.slice(1).forEach(k => collapsedDays.add('arc_ds_' + k));
+    arcDaysDefaulted = true;
+  }
+
   let html = '';
   dayOrder.forEach(key => {
     const { date, entries } = dayMap[key];
@@ -1149,7 +1450,7 @@ function renderArchive() {
     html += `<div class="day-header" onclick="toggleDaySection('${dsId}')"><span class="day-chevron">&#9658;</span><span class="day-label">${formatDate(date)}</span><span class="day-count">${totalLinks} links</span></div>`;
     html += `<div class="day-section-body">`;
 
-    entries.forEach(e => {
+    if (isOpen) entries.forEach(e => {
       const links = e.links.filter(archFilterFn);
       if (!links.length && archiveFilter) return;
       html += renderRunGroup(e, 'arc', links);
@@ -1255,24 +1556,32 @@ function buildUrlFilterChips() {
 
 // Results: allow full deselect (no minimum-1 guard)
 function toggleUrlFilter(id, el) {
+  const hidden = lsGetSet(LS_HIDDEN_RESULTS);
   if (enabledUrlIds.has(id)) {
     enabledUrlIds.delete(id);
     el.classList.remove('checked');
+    hidden.add(id);
   } else {
     enabledUrlIds.add(id);
     el.classList.add('checked');
+    hidden.delete(id);
   }
+  lsSaveSet(LS_HIDDEN_RESULTS, hidden);   // remember across launches
   renderResults();
 }
 
 function toggleArchiveFilter(id, el) {
+  const hidden = lsGetSet(LS_HIDDEN_ARCHIVE);
   if (archiveEnabledUrlIds.has(id)) {
     archiveEnabledUrlIds.delete(id);
     el.classList.remove('checked');
+    hidden.add(id);
   } else {
     archiveEnabledUrlIds.add(id);
     el.classList.add('checked');
+    hidden.delete(id);
   }
+  lsSaveSet(LS_HIDDEN_ARCHIVE, hidden);   // remember across launches
   renderArchive();
 }
 

@@ -14,6 +14,14 @@ scraper/browser_profiles.json
 .local-chromium/
 .cache/
 
+# Backups / scratch
+*.bak
+
+# Extension private data (personal resume, fetched description cache)
+extensions/*/resume.txt
+extensions/*/resume.md
+extensions/*/.cache/
+
 # Logs
 *.log
 npm-debug.log*

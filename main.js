@@ -5,6 +5,7 @@ const os = require('os');
 const http = require('http');
 const net = require('net');
 const { spawn } = require('child_process');
+const extensions = require('./extensions');
 
 // ── Paths ──────────────────────────────────────────────────────────────────
 const USER_DATA = app.getPath('userData');
@@ -12,7 +13,23 @@ const CONFIG_PATH = path.join(USER_DATA, 'config.json');
 const RESULTS_PATH = path.join(USER_DATA, 'results.json');
 const SEEN_PATH = path.join(USER_DATA, 'seen_links.json');
 
+// Extensions: bundled (ships with the app, updates via git) + user (yours and
+// ones others share; lives in userData so app updates never clobber them).
+const EXT_BUNDLED_DIR = path.join(__dirname, 'extensions');
+const EXT_USER_DIR = path.join(USER_DATA, 'extensions');
+const EXT_CACHE_DIR = path.join(USER_DATA, 'ext-cache');   // scratch for rankers
+
 const BUNDLED_SCRAPER = path.join(__dirname, 'scraper', 'scraper.js');
+// The main HyperlinkScraper project (sibling folder) is the single source of
+// truth. We run it directly when present, so improvements there are live with
+// no copying/drift; the bundled copy is a fallback for when it's absent.
+const MAIN_SCRAPER = path.join(__dirname, '..', 'HyperlinkScraper', 'scraper.js');
+
+function resolveScraper() {
+  if (config.scraperPath && fs.existsSync(config.scraperPath)) return config.scraperPath; // user override
+  if (fs.existsSync(MAIN_SCRAPER)) return MAIN_SCRAPER;                                    // single source
+  return BUNDLED_SCRAPER;                                                                  // fallback
+}
 
 // ── State ──────────────────────────────────────────────────────────────────
 let mainWindow = null;
@@ -24,6 +41,9 @@ let results = [];
 let config = {};
 let liveScraperPort = null;
 let scrapeInProgress = {};
+let keepServerWarm = false;   // true = user pinned the server on (no idle-sleep)
+let idleTimer = null;         // stops the server after a stretch with no scrapes
+let serverStarting = false;   // guards against double-starting on concurrent wakes
 
 // ── Storage helpers ────────────────────────────────────────────────────────
 function loadJSON(filePath, defaultVal) {
@@ -47,7 +67,7 @@ const MAX_RESULTS = 2000;
 
 function loadAll() {
   config = loadJSON(CONFIG_PATH, { notifyOnFail: false, urls: [] });
-  config.scraperPath = BUNDLED_SCRAPER;
+  config.scraperPath = resolveScraper();   // main project if present, else bundled
   results = loadJSON(RESULTS_PATH, []);
   seenLinks = new Set(loadJSON(SEEN_PATH, []));
 }
@@ -60,6 +80,60 @@ function saveConfig() {
 function saveResults() { saveJSON(RESULTS_PATH, results); }
 function saveSeenLinks() { saveJSON(SEEN_PATH, [...seenLinks]); }
 
+// ── Extensions ───────────────────────────────────────────────────────────────
+// Convert a scraped link into a stored result link, carrying through any fields
+// a ranker added (score, badges, matched skills) so the UI can show them.
+function toLinkEntry(l) {
+  const e = { title: l.text || l.title || 'Untitled', url: l.url };
+  if (typeof l.score === 'number') e.score = l.score;
+  if (Array.isArray(l.badges) && l.badges.length) e.badges = l.badges;
+  if (Array.isArray(l.matchedSkills) && l.matchedSkills.length) e.matchedSkills = l.matchedSkills;
+  if (l.ats) e.ats = l.ats;
+  if (l.noLogin) e.noLogin = true;
+  return e;
+}
+
+function writeExtReadme() {
+  const p = path.join(EXT_USER_DIR, 'README.txt');
+  if (fs.existsSync(p)) return;
+  const txt =
+`LinkWatch extensions
+====================
+
+Drop an extension FOLDER in here. Each folder needs:
+  manifest.json   { "id", "name", "type": "ranker", "version", "description", "main": "index.js" }
+  index.js        module.exports = { rank(links, ctx) { ...return links... } }
+
+A "ranker" runs after every scrape and can reorder / filter / annotate the
+results (e.g. sort best job matches first). Enable it in Settings > Extensions.
+
+WARNING: an enabled extension runs as a real program with full access to your
+computer. Only enable extensions you wrote or trust. Code is never executed for
+an extension that is turned off.
+
+See the bundled "resume-match" extension for a working example.
+`;
+  try { fs.writeFileSync(p, txt); } catch (_) {}
+}
+
+function initExtensions() {
+  config.extensions = config.extensions || { enabled: {} };
+  try { fs.mkdirSync(EXT_USER_DIR, { recursive: true }); } catch (_) {}
+  try { fs.mkdirSync(EXT_CACHE_DIR, { recursive: true }); } catch (_) {}
+  writeExtReadme();
+  extensions.init({
+    bundledDir: EXT_BUNDLED_DIR,
+    userDir: EXT_USER_DIR,
+    log: sendLog,
+    getEnabledMap: () => (config.extensions && config.extensions.enabled) || {},
+    setEnabledMap: (m) => {
+      config.extensions = config.extensions || {};
+      config.extensions.enabled = m;
+      saveConfig();
+    },
+  });
+}
+
 function normalizeUrl(url) {
   try {
     const u = new URL(url);
@@ -71,7 +145,7 @@ function normalizeUrl(url) {
 
 // ── First-run file init ────────────────────────────────────────────────────
 function initScraperFiles() {
-  const scraperDir = path.dirname(BUNDLED_SCRAPER);
+  const scraperDir = path.dirname(config.scraperPath || BUNDLED_SCRAPER);
   const defaults = {
     'seen_links.json':       [],
     'cookie_store.json':     {},
@@ -175,17 +249,24 @@ async function findFreePort(maxAttempts = 10) {
 
 // ── Scraper server ─────────────────────────────────────────────────────────
 async function startScraperServer() {
-  if (scraperProcess) return;
+  // Guard against double-starts when several scrapes wake the server at once.
+  if (scraperProcess || serverStarting) return;
+  serverStarting = true;
 
-  if (!fs.existsSync(BUNDLED_SCRAPER)) {
-    sendLog('error', `Scraper not found at: ${BUNDLED_SCRAPER}`);
+  const scraperPath = config.scraperPath || resolveScraper();
+  if (!fs.existsSync(scraperPath)) {
+    serverStarting = false;
+    sendLog('error', `Scraper not found at: ${scraperPath}`);
     mainWindow?.webContents.send('server-status', 'error');
     return;
   }
+  const usingMain = path.resolve(scraperPath) === path.resolve(MAIN_SCRAPER);
+  sendLog('info', `Scraper source: ${usingMain ? 'main HyperlinkScraper project (live)' : 'bundled copy'} — ${scraperPath}`);
 
   sendLog('info', 'Finding available port...');
   const port = await findFreePort(10);
   if (!port) {
+    serverStarting = false;
     sendLog('error', 'Failed to find a free port after 10 attempts. Server not started.');
     mainWindow?.webContents.send('server-status', 'error');
     return;
@@ -194,10 +275,11 @@ async function startScraperServer() {
   liveScraperPort = port;
   sendLog('info', `Starting scraper server on port ${port}...`);
 
-  scraperProcess = spawn('node', [BUNDLED_SCRAPER], {
+  scraperProcess = spawn('node', [scraperPath], {
     env: { ...process.env, PORT: port },
-    cwd: path.dirname(BUNDLED_SCRAPER)
+    cwd: path.dirname(scraperPath)
   });
+  serverStarting = false;   // process handle exists; further wakes will see it
   scraperProcess.stdout.on('data', d => {
     const msg = d.toString().trim();
     if (!msg) return;
@@ -206,7 +288,9 @@ async function startScraperServer() {
       serverReady = true;
       mainWindow?.webContents.send('server-status', 'running');
       mainWindow?.webContents.send('port-changed', port);
-      restartAllSchedulers();
+      // Schedulers run independently of the server now (so the server can sleep
+      // when idle without stopping scheduled scrapes), so we no longer (re)arm
+      // them here — they're armed once on app start.
     }
   });
   scraperProcess.stderr.on('data', d => {
@@ -227,7 +311,10 @@ async function startScraperServer() {
 }
 
 function stopScraperServer() {
-  stopAllSchedulers();
+  // NB: schedulers are intentionally NOT stopped here — the server sleeps when
+  // idle but scheduled scrapes keep running and wake it on demand. Schedulers
+  // are only torn down on app quit.
+  if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
   const proc = scraperProcess;
   if (proc) {
     proc.kill('SIGTERM');
@@ -235,8 +322,135 @@ function stopScraperServer() {
   }
 }
 
+// Start the server if it isn't up and resolve once it's ready to accept scrapes.
+// Lets scrapes run on demand while the process stays asleep the rest of the time.
+function ensureServerReady(timeoutMs = 25000) {
+  if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+  if (serverReady && scraperProcess) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    if (!scraperProcess && !serverStarting) startScraperServer();
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+      if (serverReady && scraperProcess) { clearInterval(iv); resolve(true); }
+      else if (!scraperProcess && !serverStarting && Date.now() - t0 > 1500) { clearInterval(iv); resolve(false); }
+      else if (Date.now() - t0 > timeoutMs) { clearInterval(iv); resolve(false); }
+    }, 150);
+  });
+}
+
+// After a scrape, let the server sleep if nothing else is running and the user
+// hasn't pinned it on. Cookies live in cookie_store.json on disk, so sleeping
+// the process loses nothing.
+function scheduleIdleStop() {
+  if (keepServerWarm) return;
+  if (idleTimer) clearTimeout(idleTimer);
+  const mins = Number.isFinite(config.idleStopMinutes) ? config.idleStopMinutes : 3;
+  if (mins <= 0) return;
+  idleTimer = setTimeout(() => {
+    idleTimer = null;
+    if (keepServerWarm) return;
+    if (Object.keys(scrapeInProgress).length > 0) { scheduleIdleStop(); return; }
+    if (scraperProcess) {
+      sendLog('info', `Idle for ${mins} min — sleeping the scraper to save memory (cookies stay saved on disk).`);
+      stopScraperServer();
+    }
+  }, mins * 60000);
+}
+
 function sendLog(type, message) {
   mainWindow?.webContents.send('server-log', { type, message });
+}
+
+// ── RSS feed server ──────────────────────────────────────────────────────────
+// Publishes ALL collected job links as an RSS 2.0 feed (plus a JSON variant) so
+// the "RSS feed to jobs" matcher can poll them. Read-only; the feed contains
+// only public job postings (titles + links), nothing sensitive.
+//   http://127.0.0.1:<RSS_PORT>/rss        (RSS 2.0 XML)
+//   http://127.0.0.1:<RSS_PORT>/feed.json  (simple JSON)
+// Host/port overridable via env; default host is LAN-visible (0.0.0.0) to honor
+// "consume from another machine" — set LINKWATCH_RSS_HOST=127.0.0.1 to restrict.
+const RSS_PORT = Number(process.env.LINKWATCH_RSS_PORT) || 3777;
+const RSS_HOST = process.env.LINKWATCH_RSS_HOST || '0.0.0.0';
+let rssServer = null;
+
+function xmlEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+// Flatten results (already newest-first) into unique, non-test job items.
+function collectFeedItems(limit = 500) {
+  const seen = new Set();
+  const items = [];
+  for (const entry of results) {
+    if (entry.isTest) continue;
+    for (const link of (entry.links || [])) {
+      if (!link || !link.url) continue;
+      const key = normalizeUrl(link.url);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push({
+        title: link.title || 'Untitled',
+        url: link.url,
+        source: entry.urlNickname || '',
+        date: entry.timestamp,
+      });
+      if (items.length >= limit) return items;
+    }
+  }
+  return items;
+}
+
+function buildRssXml() {
+  const items = collectFeedItems();
+  const body = items.map(it => `    <item>
+      <title>${xmlEscape(it.title)}</title>
+      <link>${xmlEscape(it.url)}</link>
+      <guid isPermaLink="false">${xmlEscape(normalizeUrl(it.url))}</guid>
+      <category>${xmlEscape(it.source)}</category>
+      <pubDate>${xmlEscape(new Date(it.date || Date.now()).toUTCString())}</pubDate>
+      <description>${xmlEscape(it.source ? ('From ' + it.source) : '')}</description>
+    </item>`).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>LinkWatch Jobs</title>
+    <link>http://127.0.0.1:${RSS_PORT}/rss</link>
+    <description>All job links collected by LinkWatch</description>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+${body}
+  </channel>
+</rss>`;
+}
+
+function buildFeedJson() {
+  const items = collectFeedItems();
+  return JSON.stringify({ title: 'LinkWatch Jobs', generated: new Date().toISOString(), count: items.length, items }, null, 2);
+}
+
+function startRssServer() {
+  if (rssServer) return;
+  rssServer = http.createServer((req, res) => {
+    const p = (req.url || '').split('?')[0];
+    const cors = { 'Access-Control-Allow-Origin': '*' };
+    if (p === '/rss' || p === '/api/rss' || p === '/feed.xml') {
+      res.writeHead(200, { 'Content-Type': 'application/rss+xml; charset=utf-8', ...cors });
+      res.end(buildRssXml());
+    } else if (p === '/feed.json' || p === '/api/rss.json') {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', ...cors });
+      res.end(buildFeedJson());
+    } else if (p === '/' || p === '/health') {
+      res.writeHead(200, { 'Content-Type': 'text/plain', ...cors });
+      res.end('LinkWatch RSS feed. Try /rss (XML) or /feed.json (JSON).');
+    } else {
+      res.writeHead(404); res.end('Not found');
+    }
+  });
+  rssServer.on('error', err => sendLog('error', `RSS feed server error: ${err.message} (port ${RSS_PORT})`));
+  rssServer.listen(RSS_PORT, RSS_HOST, () => {
+    sendLog('info', `RSS feed live at http://127.0.0.1:${RSS_PORT}/rss  (JSON: /feed.json)`);
+  });
 }
 
 // ── HTTP helper ────────────────────────────────────────────────────────────
@@ -258,9 +472,11 @@ function httpGet(url) {
 // ── Scrape one URL ─────────────────────────────────────────────────────────
 async function scrapeUrl(urlEntry, opts = {}) {
   const { affectMemory = true, isTest = false } = opts;
+  // Wake the server on demand (it sleeps when idle to save memory).
+  const up = await ensureServerReady();
   const port = liveScraperPort;
-  if (!port) {
-    sendLog('error', `[${urlEntry.nickname || urlEntry.url}] Server not ready yet — no port assigned`);
+  if (!up || !port) {
+    sendLog('error', `[${urlEntry.nickname || urlEntry.url}] Scraper didn't start in time`);
     return null;
   }
   const apiUrl = `http://127.0.0.1:${port}/api/scrape?url=${encodeURIComponent(urlEntry.url)}&nocache=true`;
@@ -290,11 +506,21 @@ async function scrapeUrl(urlEntry, opts = {}) {
 
   if (filters.length > 0) {
     const includeTerms = filters.filter(f => !f.exclude).map(f => f.text.toLowerCase());
+    const excludeTerms = filters.filter(f =>  f.exclude).map(f => f.text.toLowerCase());
+    // Include: keep a link if its title/url matches ANY include term.
     if (includeTerms.length > 0) {
-      filtered = allLinks.filter(link => {
+      filtered = filtered.filter(link => {
         const title = (link.text || '').toLowerCase();
         const href  = (link.url  || '').toLowerCase();
         return includeTerms.some(term => title.includes(term) || href.includes(term));
+      });
+    }
+    // Exclude: then drop any link whose title/url matches ANY exclude term.
+    if (excludeTerms.length > 0) {
+      filtered = filtered.filter(link => {
+        const title = (link.text || '').toLowerCase();
+        const href  = (link.url  || '').toLowerCase();
+        return !excludeTerms.some(term => title.includes(term) || href.includes(term));
       });
     }
   }
@@ -308,7 +534,19 @@ async function scrapeUrl(urlEntry, opts = {}) {
     if (newLinks.length > 0) saveSeenLinks();
   }
 
-  return { links: newLinks, total: filtered.length, urlEntry };
+  // Run enabled ranker extensions (sort / filter / annotate). A failure here must
+  // never break scraping, so fall back to the raw links on any error.
+  let ranked = newLinks;
+  try {
+    ranked = await extensions.runRankers(newLinks, {
+      query: urlEntry.url, urlEntry, cacheDir: EXT_CACHE_DIR, log: sendLog,
+    });
+  } catch (err) {
+    sendLog('warn', `Ranker pipeline error: ${err.message}`);
+    ranked = newLinks;
+  }
+
+  return { links: ranked, total: filtered.length, urlEntry };
 }
 
 // ── Scheduler ──────────────────────────────────────────────────────────────
@@ -421,7 +659,7 @@ async function runScheduled(urlEntry) {
       urlId: urlEntry.id,
       urlNickname: urlEntry.nickname || urlEntry.url,
       timestamp: new Date().toISOString(),
-      links: result.links.map(l => ({ title: l.text || 'Untitled', url: l.url })),
+      links: result.links.map(toLinkEntry),
       isTest: false
     };
     results.unshift(entry);
@@ -432,6 +670,7 @@ async function runScheduled(urlEntry) {
     return true;
   } finally {
     delete scrapeInProgress[urlEntry.id];
+    scheduleIdleStop();
   }
 }
 
@@ -460,9 +699,11 @@ ipcMain.handle('save-config', (_, newConfig) => {
   return true;
 });
 
-ipcMain.handle('server-start', () => { startScraperServer(); return true; });
-ipcMain.handle('server-stop', () => { stopScraperServer(); return true; });
-ipcMain.handle('server-status', () => ({ running: !!scraperProcess, ready: serverReady }));
+// Manual pill: "start" pins the server on (no idle-sleep); "stop" lets it sleep.
+// Either way, scheduled scrapes keep running and wake it on demand.
+ipcMain.handle('server-start', () => { keepServerWarm = true; if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } startScraperServer(); return true; });
+ipcMain.handle('server-stop', () => { keepServerWarm = false; stopScraperServer(); return true; });
+ipcMain.handle('server-status', () => ({ running: !!scraperProcess, ready: serverReady, warm: keepServerWarm }));
 
 ipcMain.handle('open-external', (_, url) => shell.openExternal(url));
 
@@ -470,6 +711,7 @@ ipcMain.handle('run-test', async (_, urlEntry, opts) => {
   const { affectMemory = false } = opts || {};
   sendLog('info', `[TEST] Scraping ${urlEntry.nickname || urlEntry.url}...`);
   const result = await scrapeUrl(urlEntry, { affectMemory, isTest: true });
+  scheduleIdleStop();
   if (!result) return { ok: false, links: [] };
 
   const entry = {
@@ -477,7 +719,7 @@ ipcMain.handle('run-test', async (_, urlEntry, opts) => {
     urlId: urlEntry.id || 'test',
     urlNickname: (urlEntry.nickname || urlEntry.url) + ' [TEST]',
     timestamp: new Date().toISOString(),
-    links: result.links.map(l => ({ title: l.text || 'Untitled', url: l.url })),
+    links: result.links.map(toLinkEntry),
     isTest: true,
     affectedMemory: affectMemory
   };
@@ -512,6 +754,93 @@ ipcMain.handle('clear-all-results', () => {
 
 ipcMain.handle('get-user-data-path', () => USER_DATA);
 
+ipcMain.handle('get-rss-info', () => ({
+  port: RSS_PORT,
+  url: `http://127.0.0.1:${RSS_PORT}/rss`,
+  jsonUrl: `http://127.0.0.1:${RSS_PORT}/feed.json`,
+  count: collectFeedItems().length,
+}));
+
+// ── Extensions IPC ───────────────────────────────────────────────────────────
+ipcMain.handle('list-extensions', () => extensions.list());
+ipcMain.handle('set-extension-enabled', (_, id, on) => extensions.setEnabled(id, on));
+ipcMain.handle('reload-extensions', () => { extensions.reload(); return extensions.list(); });
+ipcMain.handle('get-extensions-dir', () => extensions.dirs());
+ipcMain.handle('open-extensions-dir', () => { shell.openPath(EXT_USER_DIR); return EXT_USER_DIR; });
+
+// Apply the enabled rankers to the results ALREADY on screen (e.g. right after
+// the user turns a ranker on). Rankers run per result-group, so multiple searches
+// each get sorted independently. No-op when no rankers are active.
+let reranking = false;
+ipcMain.handle('rerank-results', async () => {
+  if (reranking) return { ok: false, busy: true };
+  if (!extensions.activeRankers().length) return { ok: true, changed: 0 };
+  reranking = true;
+  let changed = 0;
+  try {
+    for (const entry of results) {
+      if (!Array.isArray(entry.links) || !entry.links.length) continue;
+      const input = entry.links.map(l => ({ ...l, text: l.title || l.text }));
+      try {
+        const ranked = await extensions.runRankers(input, {
+          query: entry.urlNickname || '', cacheDir: EXT_CACHE_DIR, log: sendLog,
+        });
+        entry.links = ranked.map(toLinkEntry);
+        changed++;
+      } catch (e) { sendLog('warn', `Re-rank failed for one group: ${e.message}`); }
+    }
+    if (changed) saveResults();
+  } finally { reranking = false; }
+  sendLog('info', `Re-ranked ${changed} result group(s) with active extensions.`);
+  return { ok: true, changed };
+});
+
+// ── Scraper update (B) ───────────────────────────────────────────────────────
+ipcMain.handle('get-scraper-info', () => {
+  const p = config.scraperPath || resolveScraper();
+  return { path: p, dir: path.dirname(p),
+           usingMain: path.resolve(p) === path.resolve(MAIN_SCRAPER) };
+});
+
+function runGit(dir, args) {
+  return new Promise((resolve) => {
+    const p = spawn('git', ['-C', dir, ...args]);
+    let out = '', err = '';
+    p.stdout.on('data', d => out += d);
+    p.stderr.on('data', d => err += d);
+    p.on('close', code => resolve({ code, out: out.trim(), err: err.trim() }));
+    p.on('error', e => resolve({ code: -1, out: '', err: e.message }));
+  });
+}
+
+async function restartScraper() {
+  stopScraperServer();
+  for (let i = 0; i < 25 && scraperProcess; i++) await new Promise(r => setTimeout(r, 200));
+  startScraperServer();
+}
+
+// Pull the latest scraper from GitHub (fast-forward only, so local work is
+// never clobbered), then restart the server so new code takes effect.
+ipcMain.handle('update-scraper', async () => {
+  const dir = path.dirname(config.scraperPath || resolveScraper());
+  const check = await runGit(dir, ['rev-parse', '--is-inside-work-tree']);
+  if (check.code !== 0) {
+    return { ok: false, message: `The scraper folder isn't a git repo, so there's nothing to pull.\n${dir}` };
+  }
+  sendLog('info', 'Checking for scraper updates...');
+  const pull = await runGit(dir, ['pull', '--ff-only']);
+  const text = (pull.out + '\n' + pull.err).trim();
+  if (pull.code !== 0) {
+    return { ok: false, message:
+      `Couldn't fast-forward:\n${text}\n\nYour local files were NOT changed. ` +
+      `If you have local edits, commit or stash them first; if GitHub has diverged, resolve it in git.` };
+  }
+  const upToDate = /up to date/i.test(text);
+  if (!upToDate) { await restartScraper(); }
+  sendLog('info', upToDate ? 'Scraper already up to date.' : 'Scraper updated and restarted.');
+  return { ok: true, upToDate, message: upToDate ? 'Already up to date.' : `Updated & restarted:\n${text}` };
+});
+
 // ── Window ─────────────────────────────────────────────────────────────────
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -530,11 +859,14 @@ function createWindow() {
   mainWindow.once('ready-to-show', async () => {
     mainWindow.show();
     await ensureChromium();
-    startScraperServer();
+    // Don't start the scraper at launch — it sleeps until a scrape needs it, to
+    // keep idle memory down. Arm the schedulers so scheduled scrapes still fire
+    // (they wake the server on demand).
+    restartAllSchedulers();
   });
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
-app.whenReady().then(() => { loadAll(); initScraperFiles(); createWindow(); });
-app.on('window-all-closed', () => { stopScraperServer(); if (process.platform !== 'darwin') app.quit(); });
+app.whenReady().then(() => { loadAll(); initExtensions(); initScraperFiles(); startRssServer(); createWindow(); });
+app.on('window-all-closed', () => { stopAllSchedulers(); stopScraperServer(); try { rssServer?.close(); } catch {} if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (!mainWindow) createWindow(); });
