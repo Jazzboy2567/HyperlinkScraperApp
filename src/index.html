@@ -598,8 +598,8 @@ a:hover { text-decoration: underline; }
 .ext-warn b { color: var(--txt); }
 .ext-grid { display: flex; flex-direction: column; gap: 10px; }
 .ext-card { position: relative; background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; gap: 12px; transition: border-color .12s, background .12s; }
-.ext-del { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; line-height: 18px; text-align: center; border: none; border-radius: 5px; background: transparent; color: var(--txt3); font-size: 12px; cursor: pointer; padding: 0; transition: background .12s, color .12s; }
-.ext-del:hover { background: rgba(255,120,120,0.14); color: #ff8a8a; }
+.ext-del { width: 22px; height: 22px; line-height: 20px; text-align: center; border: 1px solid var(--line); border-radius: 5px; background: var(--bg3); color: var(--txt2); font-size: 12px; cursor: pointer; padding: 0; transition: background .12s, color .12s, border-color .12s; }
+.ext-del:hover { background: rgba(255,120,120,0.18); color: #ff8a8a; border-color: #ff8a8a; }
 .ext-card:hover { border-color: var(--line2); }
 .ext-card.on { border-color: rgba(232,255,71,0.28); background: linear-gradient(var(--bg2), var(--bg2)) padding-box, rgba(232,255,71,0.02); }
 .ext-ico { width: 38px; height: 38px; border-radius: 8px; background: var(--bg3); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--txt3); flex-shrink: 0; }
@@ -1174,7 +1174,6 @@ async function renderExtensions() {
       ? `<button class="ext-del" title="Delete this extension" onclick="deleteExtension('${esc(x.id)}', '${esc(x.name)}')">✕</button>`
       : '';
     return `<div class="ext-card ${x.enabled ? 'on' : ''}">
-      ${del}
       <div class="ext-ico">${puzzle}</div>
       <div class="ext-main">
         <div class="ext-top">
@@ -1188,6 +1187,7 @@ async function renderExtensions() {
         ${err}
       </div>
       <div class="ext-right">
+        ${del}
         <div class="toggle ${x.enabled ? 'on' : ''}"
              onclick="this.classList.toggle('on'); toggleExtension('${esc(x.id)}', this.classList.contains('on'))"></div>
         <span class="ext-state">${x.enabled ? 'enabled' : 'disabled'}</span>
