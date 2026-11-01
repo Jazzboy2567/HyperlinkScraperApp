@@ -597,7 +597,9 @@ a:hover { text-decoration: underline; }
 .ext-warn svg { width: 16px; height: 16px; color: var(--acc2); flex-shrink: 0; margin-top: 1px; }
 .ext-warn b { color: var(--txt); }
 .ext-grid { display: flex; flex-direction: column; gap: 10px; }
-.ext-card { background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; gap: 12px; transition: border-color .12s, background .12s; }
+.ext-card { position: relative; background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; gap: 12px; transition: border-color .12s, background .12s; }
+.ext-del { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; line-height: 18px; text-align: center; border: none; border-radius: 5px; background: transparent; color: var(--txt3); font-size: 12px; cursor: pointer; padding: 0; transition: background .12s, color .12s; }
+.ext-del:hover { background: rgba(255,120,120,0.14); color: #ff8a8a; }
 .ext-card:hover { border-color: var(--line2); }
 .ext-card.on { border-color: rgba(232,255,71,0.28); background: linear-gradient(var(--bg2), var(--bg2)) padding-box, rgba(232,255,71,0.02); }
 .ext-ico { width: 38px; height: 38px; border-radius: 8px; background: var(--bg3); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--txt3); flex-shrink: 0; }
@@ -1166,7 +1168,13 @@ async function renderExtensions() {
     const srcClass = x.source === 'user' ? 'yours' : 'builtin';
     const srcLabel = x.source === 'user' ? 'yours' : 'built-in';
     const err = x.error ? `<div class="ext-err">⚠ ${esc(x.error)}</div>` : '';
+    // Only your own (user) extensions can be removed from here; built-ins ship
+    // with the app. The X deletes the extension's folder (asks first).
+    const del = x.source === 'user'
+      ? `<button class="ext-del" title="Delete this extension" onclick="deleteExtension('${esc(x.id)}', '${esc(x.name)}')">✕</button>`
+      : '';
     return `<div class="ext-card ${x.enabled ? 'on' : ''}">
+      ${del}
       <div class="ext-ico">${puzzle}</div>
       <div class="ext-main">
         <div class="ext-top">
@@ -1191,6 +1199,15 @@ async function renderExtensions() {
 async function toggleExtension(id, on) {
   try { await api.setExtensionEnabled(id, on); } catch (e) { alert('Could not toggle: ' + e.message); return; }
   await applyExtensionsToResults();
+}
+
+async function deleteExtension(id, name) {
+  if (!confirm(`Delete the "${name}" extension? This removes its folder from disk. This can't be undone.`)) return;
+  try {
+    const r = await api.deleteExtension(id);
+    if (!r.ok) { alert(r.message || 'Could not delete.'); return; }
+  } catch (e) { alert('Delete error: ' + e.message); return; }
+  await applyExtensionsToResults();   // re-render cards + refresh results/dots
 }
 
 async function reloadExtensions() {
@@ -1476,17 +1493,35 @@ function linkTier(l) {
   return 1;
 }
 
+// Collapse reposts the same way the ranker does (role + employer), so repeats
+// never survive to the view even if the stored results predate dedup.
+function linkDupeKey(l) {
+  const title = (l.title || l.text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  let company = '';
+  const m = (l.url || '').match(/-at-([a-z0-9][a-z0-9-]*?)-\d{6,}/i);
+  if (m) company = m[1].toLowerCase();
+  else { try { company = new URL(l.url).host.replace(/^www\./, ''); } catch (_) {} }
+  return title + '::' + company;
+}
+
 function renderRunGroup(entry, ns, linksOverride) {
   let links = linksOverride !== undefined
     ? linksOverride
     : entry.links.filter(filterLinkText);
   if (!links.length && (linksOverride !== undefined ? false : !!resultsFilter)) return '';
 
-  // When a ranker has scored these, present them experience-first then by score
-  // at render time, so the order is stable and correct even if what's stored was
-  // ranked by an older build or before descriptions finished fetching.
+  // When a ranker has scored these, collapse reposts then present them
+  // experience-first and by score at render time — so the view is stable and
+  // correct even if what's stored was ranked by an older build, predates dedup,
+  // or was ranked before descriptions finished fetching.
   if (links.some(l => typeof l.score === 'number')) {
-    links = [...links].sort((a, b) => (linkTier(a) - linkTier(b)) || ((b.score || 0) - (a.score || 0)));
+    const best = new Map();
+    for (const l of links) {
+      const k = linkDupeKey(l);
+      const cur = best.get(k);
+      if (!cur || (l.score || 0) > (cur.score || 0)) best.set(k, l);
+    }
+    links = [...best.values()].sort((a, b) => (linkTier(a) - linkTier(b)) || ((b.score || 0) - (a.score || 0)));
   }
 
   const gid = `${ns}_rg_${entry.id}`;
@@ -1506,7 +1541,7 @@ function renderRunGroup(entry, ns, linksOverride) {
   if (isOpen) links.forEach((link, i) => {
     // Dim roles above your level (senior / clearance) so they read as "below the
     // line" at a glance, while keeping their honest skill score visible.
-    const dim = linkTier(link) >= 2 ? ' style="opacity:0.5;"' : '';
+    const dim = linkTier(link) >= 2 ? ' style="opacity:0.68;"' : '';
     html += `<div class="link-row"${dim}>`;
     html += `<span class="link-num">${i+1}</span>`;
     if (typeof link.score === 'number') {

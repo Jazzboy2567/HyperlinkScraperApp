@@ -771,6 +771,19 @@ ipcMain.handle('reload-extensions', () => {
   checkAllUpdates('reload').catch(() => {});
   return extensions.list();
 });
+ipcMain.handle('delete-extension', async (_, id) => {
+  const e = extensions.list().find(x => x.id === id);
+  if (!e) return { ok: false, message: 'Extension not found.' };
+  if (e.source !== 'user') return { ok: false, message: `"${e.name}" is built in and ships with the app, so it can't be deleted here.` };
+  try { fs.rmSync(e.dir, { recursive: true, force: true }); }
+  catch (err) { return { ok: false, message: `Couldn't delete the folder: ${err.message}` }; }
+  // Forget its enabled choice too, so a reinstall starts fresh.
+  if (config.extensions && config.extensions.enabled) { delete config.extensions.enabled[id]; saveConfig(); }
+  extensions.reload();
+  checkAllUpdates('ext-delete').catch(() => {});
+  sendLog('info', `Deleted extension "${id}".`);
+  return { ok: true };
+});
 ipcMain.handle('get-extensions-dir', () => extensions.dirs());
 ipcMain.handle('open-extensions-dir', () => { shell.openPath(EXT_USER_DIR); return EXT_USER_DIR; });
 
