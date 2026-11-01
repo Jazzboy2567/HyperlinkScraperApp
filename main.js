@@ -829,13 +829,19 @@ ipcMain.handle('open-extensions-dir', () => { shell.openPath(EXT_USER_DIR); retu
 // the user turns a ranker on). Rankers run per result-group, so multiple searches
 // each get sorted independently. No-op when no rankers are active.
 let reranking = false;
+const RERANK_MAX_GROUPS = 40;   // only the groups you can actually be looking at
 ipcMain.handle('rerank-results', async () => {
   if (reranking) return { ok: false, busy: true };
   if (!extensions.activeRankers().length) return { ok: true, changed: 0 };
   reranking = true;
   let changed = 0;
   try {
-    for (const entry of results) {
+    // Re-rank only the most recent groups, not the entire history — re-ranking
+    // 1000+ old scrapes would fetch thousands of descriptions and hang the app.
+    const recent = [...results]
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, RERANK_MAX_GROUPS);
+    for (const entry of recent) {
       if (!Array.isArray(entry.links) || !entry.links.length) continue;
       const input = entry.links.map(l => ({ ...l, text: l.title || l.text }));
       try {
