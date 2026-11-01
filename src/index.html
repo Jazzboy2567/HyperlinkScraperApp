@@ -1466,11 +1466,28 @@ function toggleDaySection(dsId) {
 
 // ns = 'res' or 'arc' — namespace to avoid duplicate IDs between panels
 // linksOverride: if provided, use these links instead of filtering entry.links internally
+// Experience tier from the badges a ranker attached: entry-level on top,
+// unspecified next, then senior, then clearance last.
+function linkTier(l) {
+  const b = Array.isArray(l.badges) ? l.badges : [];
+  if (b.includes('entry-level')) return 0;
+  if (b.includes('clearance'))   return 3;
+  if (b.includes('senior'))      return 2;
+  return 1;
+}
+
 function renderRunGroup(entry, ns, linksOverride) {
-  const links = linksOverride !== undefined
+  let links = linksOverride !== undefined
     ? linksOverride
     : entry.links.filter(filterLinkText);
   if (!links.length && (linksOverride !== undefined ? false : !!resultsFilter)) return '';
+
+  // When a ranker has scored these, present them experience-first then by score
+  // at render time, so the order is stable and correct even if what's stored was
+  // ranked by an older build or before descriptions finished fetching.
+  if (links.some(l => typeof l.score === 'number')) {
+    links = [...links].sort((a, b) => (linkTier(a) - linkTier(b)) || ((b.score || 0) - (a.score || 0)));
+  }
 
   const gid = `${ns}_rg_${entry.id}`;
   const isOpen = !collapsedGroups.has(gid);
@@ -1487,7 +1504,10 @@ function renderRunGroup(entry, ns, linksOverride) {
   // Only build the (heavy) link rows for groups that are actually open. Collapsed
   // groups render just the header; rows are built on expand (toggle re-renders).
   if (isOpen) links.forEach((link, i) => {
-    html += `<div class="link-row">`;
+    // Dim roles above your level (senior / clearance) so they read as "below the
+    // line" at a glance, while keeping their honest skill score visible.
+    const dim = linkTier(link) >= 2 ? ' style="opacity:0.5;"' : '';
+    html += `<div class="link-row"${dim}>`;
     html += `<span class="link-num">${i+1}</span>`;
     if (typeof link.score === 'number') {
       const c = link.score > 0 ? 'var(--acc)' : (link.score < 0 ? '#e58' : 'var(--txt3)');
