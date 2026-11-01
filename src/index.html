@@ -863,6 +863,19 @@ a:hover { text-decoration: underline; }
       </div>
       <div class="settings-body">
         <div class="sett-card">
+          <div class="sett-card-head">App</div>
+          <div class="sett-row">
+            <div class="sett-lbl-wrap">
+              <span class="sett-lbl">Update LinkWatch</span>
+              <span class="sett-lbl-hint">Updates the app itself from GitHub and relaunches. Safe — won't overwrite local edits.</span>
+            </div>
+            <span style="display:flex;align-items:center;gap:10px;">
+              <span id="appUpdateMsg" style="font-size:11px;color:var(--txt3);"></span>
+              <button class="btn btn-run" id="appUpdateBtn" onclick="updateApp()" style="display:none;">Update &amp; relaunch</button>
+            </span>
+          </div>
+        </div>
+        <div class="sett-card">
           <div class="sett-card-head">Scraper</div>
           <div class="sett-row">
             <div class="sett-lbl-wrap">
@@ -1018,13 +1031,26 @@ function copyRssUrl() {
 // main process on every auto/manual check, and after an update is applied).
 function applyUpdateStatus(s) {
   if (!s) return;
+  const ap = s.app || {};
   const sc = s.scraper || {};
   const ex = s.extensions || {};
 
+  // The Updates-nav dot lights for an app OR scraper update.
   const dot = document.getElementById('updateDot');
-  if (dot) dot.style.display = sc.available ? '' : 'none';
+  if (dot) dot.style.display = (ap.available || sc.available) ? '' : 'none';
   const edot = document.getElementById('extDot');
   if (edot) edot.style.display = ex.available ? '' : 'none';
+
+  const appBtn = document.getElementById('appUpdateBtn');
+  if (appBtn) appBtn.style.display = ap.available ? '' : 'none';
+  const appMsg = document.getElementById('appUpdateMsg');
+  if (appMsg) {
+    if (ap.error) { appMsg.style.color = '#e58'; appMsg.textContent = 'Check failed'; }
+    else if (ap.repo === false) { appMsg.style.color = 'var(--txt3)'; appMsg.textContent = 'Not a git checkout'; }
+    else if (ap.available) { appMsg.style.color = '#ffd23b'; appMsg.textContent = `Update available${ap.behind ? ` (${ap.behind} commit${ap.behind > 1 ? 's' : ''} behind)` : ''}`; }
+    else if (s.checkedAt) { appMsg.style.color = 'var(--txt2)'; appMsg.textContent = 'Up to date ✓'; }
+    else { appMsg.style.color = 'var(--txt3)'; appMsg.textContent = ''; }
+  }
 
   const upBtn = document.getElementById('updateBtn');
   if (upBtn) upBtn.style.display = sc.available ? '' : 'none';
@@ -1054,6 +1080,19 @@ function applyUpdateStatus(s) {
        <button class="btn" onclick="api.openExternal('${esc(it.url)}')">Get update ↗</button></div>`
     ).join('');
   }
+}
+
+async function updateApp() {
+  const btn = document.getElementById('appUpdateBtn');
+  const msg = document.getElementById('appUpdateMsg');
+  btn.disabled = true; msg.style.color = 'var(--txt3)'; msg.textContent = 'Updating…';
+  try {
+    const r = await api.updateApp();
+    if (!r.ok) { msg.style.color = '#e58'; msg.textContent = 'Update failed'; alert(r.message); }
+    else if (r.upToDate) { msg.style.color = 'var(--txt2)'; msg.textContent = 'Up to date ✓'; btn.style.display = 'none'; }
+    else { msg.style.color = 'var(--txt2)'; msg.textContent = 'Updated — relaunching…'; }
+  } catch (e) { msg.style.color = '#e58'; msg.textContent = 'Error'; alert('Update error: ' + e.message); }
+  finally { btn.disabled = false; }
 }
 
 async function checkUpdatesNow() {

@@ -701,8 +701,8 @@ ipcMain.handle('save-config', (_, newConfig) => {
 
 // Manual pill: "start" pins the server on (no idle-sleep); "stop" lets it sleep.
 // Either way, scheduled scrapes keep running and wake it on demand.
-ipcMain.handle('server-start', () => { keepServerWarm = true; if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } startScraperServer(); return true; });
-ipcMain.handle('server-stop', () => { keepServerWarm = false; stopScraperServer(); return true; });
+ipcMain.handle('server-start', () => { keepServerWarm = true; config.serverOn = true; saveConfig(); if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } startScraperServer(); return true; });
+ipcMain.handle('server-stop', () => { keepServerWarm = false; config.serverOn = false; saveConfig(); stopScraperServer(); return true; });
 ipcMain.handle('server-status', () => ({ running: !!scraperProcess, ready: serverReady, warm: keepServerWarm }));
 
 ipcMain.handle('open-external', (_, url) => shell.openExternal(url));
@@ -849,12 +849,12 @@ ipcMain.handle('update-scraper', async () => {
 // changes until the user clicks "Update". The renderer shows a dot on the
 // Updates nav (scraper) and the Extensions nav (an extension with a newer
 // version available via its manifest updateUrl).
-let updateStatus = { scraper: { available: false }, extensions: { available: false, items: [] }, checkedAt: 0 };
+let updateStatus = { app: { available: false }, scraper: { available: false }, extensions: { available: false, items: [] }, checkedAt: 0 };
 
 function sendUpdateStatus() { mainWindow?.webContents.send('update-status', updateStatus); }
 
-async function scraperUpdateCheck() {
-  const dir = path.dirname(config.scraperPath || resolveScraper());
+// How far behind its upstream a git checkout is (non-destructive: fetch only).
+async function gitBehind(dir) {
   const inside = await runGit(dir, ['rev-parse', '--is-inside-work-tree']);
   if (inside.code !== 0) return { available: false, repo: false };
   await runGit(dir, ['fetch', '--quiet']);
@@ -863,6 +863,9 @@ async function scraperUpdateCheck() {
   const behind = parseInt(rl.out, 10) || 0;
   return { available: behind > 0, repo: true, tracked: true, behind };
 }
+
+function scraperUpdateCheck() { return gitBehind(path.dirname(config.scraperPath || resolveScraper())); }
+function appUpdateCheck() { return gitBehind(__dirname); }
 
 function fetchJson(url, timeoutMs = 8000) {
   return new Promise((resolve, reject) => {
@@ -904,19 +907,45 @@ async function extensionsUpdateCheck() {
 }
 
 async function checkAllUpdates(reason = 'auto') {
-  const [scraper, ext] = await Promise.all([
+  const [appU, scraper, ext] = await Promise.all([
+    appUpdateCheck().catch(e => ({ available: false, error: e.message })),
     scraperUpdateCheck().catch(e => ({ available: false, error: e.message })),
     extensionsUpdateCheck().catch(e => ({ available: false, items: [], error: e.message })),
   ]);
-  updateStatus = { scraper, extensions: ext, checkedAt: Date.now() };
+  updateStatus = { app: appU, scraper, extensions: ext, checkedAt: Date.now() };
   sendUpdateStatus();
-  sendLog('info', `Update check (${reason}): scraper ${scraper.available ? 'behind ' + scraper.behind : 'current'}, ` +
+  sendLog('info', `Update check (${reason}): app ${appU.available ? 'behind ' + appU.behind : 'current'}, ` +
+                  `scraper ${scraper.available ? 'behind ' + scraper.behind : 'current'}, ` +
                   `extensions ${ext.available ? ext.items.length + ' update(s)' : 'current'}.`);
   return updateStatus;
 }
 
 ipcMain.handle('check-updates', async () => { await checkAllUpdates('manual'); return updateStatus; });
 ipcMain.handle('get-update-status', () => updateStatus);
+
+// Update the app itself: fast-forward pull of this repo, then relaunch so the
+// new main.js/renderer load. ff-only means local edits are never clobbered.
+ipcMain.handle('update-app', async () => {
+  const dir = __dirname;
+  const inside = await runGit(dir, ['rev-parse', '--is-inside-work-tree']);
+  if (inside.code !== 0) return { ok: false, message: `The app folder isn't a git checkout, so it can't self-update.\n${dir}` };
+  sendLog('info', 'Updating the app…');
+  const pull = await runGit(dir, ['pull', '--ff-only']);
+  const text = (pull.out + '\n' + pull.err).trim();
+  if (pull.code !== 0) {
+    return { ok: false, message:
+      `Couldn't fast-forward the app:\n${text}\n\nYour local files were NOT changed. ` +
+      `Commit or stash local edits (or resolve a diverged history) and try again.` };
+  }
+  const upToDate = /up to date/i.test(text);
+  updateStatus.app = { available: false, repo: true, tracked: true, behind: 0 };
+  sendUpdateStatus();
+  if (!upToDate) {
+    sendLog('info', 'App updated — relaunching…');
+    setTimeout(() => { app.relaunch(); app.exit(0); }, 400);
+  }
+  return { ok: true, upToDate, message: upToDate ? 'Already up to date.' : `Updated — relaunching:\n${text}` };
+});
 
 // Automatic checks: shortly after launch, then every 3 hours.
 function startUpdateChecks() {
@@ -947,6 +976,8 @@ function createWindow() {
     // (they wake the server on demand).
     restartAllSchedulers();
     startUpdateChecks();
+    // Restore the scraper if it was left on when the app was last closed.
+    if (config.serverOn) { keepServerWarm = true; startScraperServer(); }
   });
   mainWindow.on('closed', () => { mainWindow = null; });
 }

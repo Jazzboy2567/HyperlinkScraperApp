@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('api', {
   updateScraper: () => ipcRenderer.invoke('update-scraper'),
   checkUpdates: () => ipcRenderer.invoke('check-updates'),
   getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
+  updateApp: () => ipcRenderer.invoke('update-app'),
 
   listExtensions: () => ipcRenderer.invoke('list-extensions'),
   setExtensionEnabled: (id, on) => ipcRenderer.invoke('set-extension-enabled', id, on),
