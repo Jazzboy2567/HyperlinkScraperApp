@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('api', {
   listExtensions: () => ipcRenderer.invoke('list-extensions'),
   setExtensionEnabled: (id, on) => ipcRenderer.invoke('set-extension-enabled', id, on),
   reloadExtensions: () => ipcRenderer.invoke('reload-extensions'),
+  updateExtension: (id) => ipcRenderer.invoke('update-extension', id),
   getExtensionsDir: () => ipcRenderer.invoke('get-extensions-dir'),
   openExtensionsDir: () => ipcRenderer.invoke('open-extensions-dir'),
   rerankResults: () => ipcRenderer.invoke('rerank-results'),

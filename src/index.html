@@ -901,7 +901,7 @@ a:hover { text-decoration: underline; }
           <div class="sett-row">
             <div class="sett-lbl-wrap">
               <span class="sett-lbl">Extension updates</span>
-              <span class="sett-lbl-hint">Extensions that publish an update URL are checked alongside the scraper.</span>
+              <span class="sett-lbl-hint">Extensions that are their own git repo update in-app with one click. Bundled ones update with the app.</span>
             </div>
             <span id="extUpdateMsg" style="font-size:11px;color:var(--txt3);">—</span>
           </div>
@@ -1072,14 +1072,35 @@ function applyUpdateStatus(s) {
     else { exMsg.style.color = 'var(--txt3)'; exMsg.textContent = '—'; }
   }
   if (exList) {
-    exList.innerHTML = (ex.items || []).map(it =>
-      `<div class="sett-row"><div class="sett-lbl-wrap">
+    exList.innerHTML = (ex.items || []).map(it => {
+      if (it.method === 'git') {
+        const sub = `v${esc(it.installed)} · ${it.behind} commit${it.behind > 1 ? 's' : ''} behind`;
+        return `<div class="sett-row"><div class="sett-lbl-wrap">
+           <span class="sett-lbl">${esc(it.name)}</span>
+           <span class="sett-lbl-hint">${sub}</span>
+         </div>
+         <button class="btn btn-run" onclick="updateExtension('${esc(it.id)}', this)">Update</button></div>`;
+      }
+      // Fallback for a non-git extension that only advertises a version URL.
+      return `<div class="sett-row"><div class="sett-lbl-wrap">
          <span class="sett-lbl">${esc(it.name)}</span>
-         <span class="sett-lbl-hint">${esc(it.installed)} → ${esc(it.latest)}${it.notes ? ' · ' + esc(it.notes) : ''}</span>
+         <span class="sett-lbl-hint">${esc(it.installed)} → ${esc(it.latest)}${it.notes ? ' · ' + esc(it.notes) : ''} · not a git extension</span>
        </div>
-       <button class="btn" onclick="api.openExternal('${esc(it.url)}')">Get update ↗</button></div>`
-    ).join('');
+       <button class="btn" onclick="api.openExternal('${esc(it.url)}')">Open repo ↗</button></div>`;
+    }).join('');
   }
+}
+
+async function updateExtension(id, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
+  try {
+    const r = await api.updateExtension(id);
+    if (!r.ok) alert(r.message);
+    // Success refreshes the list via the pushed update-status; re-render cards too.
+    if (r.ok && typeof renderExtensions === 'function') renderExtensions();
+    if (r.ok && typeof applyExtensionsToResults === 'function') applyExtensionsToResults();
+  } catch (e) { alert('Update error: ' + e.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Update'; } }
 }
 
 async function updateApp() {

@@ -896,16 +896,32 @@ function cmpVersion(a, b) {
   return 0;
 }
 
+// The repo root of a git checkout (resolved), or null if the dir isn't in one.
+async function gitTopLevel(dir) {
+  const r = await runGit(dir, ['rev-parse', '--show-toplevel']);
+  return r.code === 0 ? path.resolve(r.out) : null;
+}
+
+// Prefer the git path: an extension whose own folder is a git repo updates by
+// pulling that repo in-app (no browser download). Bundled extensions (nested in
+// the app repo) update WITH the app, so they're skipped here. Only a non-git
+// extension that advertises an updateUrl falls back to a link.
 async function extensionsUpdateCheck() {
   const items = [];
   for (const e of extensions.list()) {
-    if (!e.updateUrl) continue;   // only extensions that opt in get checked
     try {
-      const meta = await fetchJson(e.updateUrl);
-      const latest = meta && (meta.version || meta.latest);
-      if (latest && cmpVersion(latest, e.version) > 0) {
-        items.push({ id: e.id, name: e.name, installed: e.version, latest,
-                     url: meta.downloadUrl || meta.url || e.updateUrl, notes: meta.notes || '' });
+      const top = await gitTopLevel(e.dir);
+      if (top && path.resolve(e.dir) === top) {
+        const b = await gitBehind(e.dir);
+        if (b.available) items.push({ id: e.id, name: e.name, method: 'git',
+                                      installed: e.version, behind: b.behind });
+      } else if (e.updateUrl && e.source !== 'bundled') {
+        const meta = await fetchJson(e.updateUrl);
+        const latest = meta && (meta.version || meta.latest);
+        if (latest && cmpVersion(latest, e.version) > 0) {
+          items.push({ id: e.id, name: e.name, method: 'link', installed: e.version, latest,
+                       url: meta.downloadUrl || meta.url || e.updateUrl, notes: meta.notes || '' });
+        }
       }
     } catch (err) { sendLog('warn', `Update check failed for extension "${e.id}": ${err.message}`); }
   }
@@ -928,6 +944,29 @@ async function checkAllUpdates(reason = 'auto') {
 
 ipcMain.handle('check-updates', async () => { await checkAllUpdates('manual'); return updateStatus; });
 ipcMain.handle('get-update-status', () => updateStatus);
+
+// Update a single extension by pulling its own git repo, then reload so the new
+// code takes effect. ff-only, so local edits are never clobbered.
+ipcMain.handle('update-extension', async (_, id) => {
+  const e = extensions.list().find(x => x.id === id);
+  if (!e) return { ok: false, message: 'Extension not found.' };
+  const top = await gitTopLevel(e.dir);
+  if (!top || path.resolve(e.dir) !== top) {
+    return { ok: false, message: `"${e.name}" isn't a standalone git extension, so it can't pull updates.\n` +
+                                 `Bundled extensions update with the app; others need their own git repo.` };
+  }
+  sendLog('info', `Updating extension "${e.id}"…`);
+  const pull = await runGit(e.dir, ['pull', '--ff-only']);
+  const text = (pull.out + '\n' + pull.err).trim();
+  if (pull.code !== 0) {
+    return { ok: false, message: `Couldn't fast-forward "${e.name}":\n${text}\n\nLocal files were NOT changed.` };
+  }
+  const upToDate = /up to date/i.test(text);
+  extensions.reload();
+  await checkAllUpdates('ext-update');
+  sendLog('info', upToDate ? `"${e.id}" already up to date.` : `"${e.id}" updated.`);
+  return { ok: true, upToDate, message: upToDate ? 'Already up to date.' : `Updated:\n${text}` };
+});
 
 // Update the app itself: fast-forward pull of this repo, then relaunch so the
 // new main.js/renderer load. ff-only means local edits are never clobbered.
