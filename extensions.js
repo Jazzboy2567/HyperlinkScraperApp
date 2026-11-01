@@ -46,6 +46,9 @@ function loadOne(dir, source, enabledMap) {
     description: man.description || '',
     author: man.author || 'unknown',
     order: typeof man.order === 'number' ? man.order : 100,
+    // Optional: a URL returning JSON like {"version":"1.2.0","downloadUrl":"…","notes":"…"}.
+    // If set, LinkWatch checks it and shows an update dot when a newer version exists.
+    updateUrl: man.updateUrl || null,
     source, dir,
     module: null,
     error: man.__error || null,
@@ -114,7 +117,7 @@ function list() {
   return registry.map(r => ({
     id: r.id, name: r.name, type: r.type, version: r.version,
     description: r.description, author: r.author, source: r.source,
-    enabled: r.enabled, error: r.error, dir: r.dir,
+    enabled: r.enabled, error: r.error, dir: r.dir, updateUrl: r.updateUrl,
   }));
 }
 

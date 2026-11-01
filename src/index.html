@@ -590,6 +590,8 @@ a:hover { text-decoration: underline; }
 ═══════════════════════════════════════════════ */
 .panel-sub { font-size: 11px; color: var(--txt3); align-self: center; }
 .nav-badge { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 2px var(--bg1); }
+.nav-badge.update { background: #ffd23b; box-shadow: 0 0 0 2px var(--bg1), 0 0 7px 1px rgba(255,210,59,0.75); animation: updatePulse 2.2s ease-in-out infinite; }
+@keyframes updatePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
 .ext-body { flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
 .ext-warn { display: flex; gap: 10px; align-items: flex-start; background: rgba(255,85,102,0.06); border: 1px solid rgba(255,85,102,0.22); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: var(--txt2); line-height: 1.55; }
 .ext-warn svg { width: 16px; height: 16px; color: var(--acc2); flex-shrink: 0; margin-top: 1px; }
@@ -723,11 +725,12 @@ a:hover { text-decoration: underline; }
     </button>
     <button class="nav-item" data-panel="panel-extensions" title="Extensions">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.7 2.7 0 1 1 0 5.4H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.7 2.7 0 1 1 5.4 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg>
+      <span class="nav-badge update" id="extDot" style="display:none;"></span>
     </button>
     <div class="nav-spacer"></div>
     <button class="nav-item" data-panel="panel-updates" title="Updates">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
-      <span class="nav-badge" id="updateDot" style="display:none;"></span>
+      <span class="nav-badge update" id="updateDot" style="display:none;"></span>
     </button>
     <button class="nav-item" data-panel="panel-settings" title="Settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -871,13 +874,25 @@ a:hover { text-decoration: underline; }
           <div class="sett-row">
             <div class="sett-lbl-wrap">
               <span class="sett-lbl">Update scraper</span>
-              <span class="sett-lbl-hint">Pull the latest scraper from GitHub (safe: won't overwrite local edits), then restart it</span>
+              <span class="sett-lbl-hint">Checks automatically on launch and every few hours; a yellow dot means an update is ready. Updating is safe — it won't overwrite local edits — then restarts the scraper.</span>
             </div>
             <span style="display:flex;align-items:center;gap:10px;">
               <span id="updateMsg" style="font-size:11px;color:var(--txt3);"></span>
-              <button class="btn btn-run" id="updateBtn" onclick="updateScraper()">Check for updates</button>
+              <button class="btn" id="checkBtn" onclick="checkUpdatesNow()">Check now</button>
+              <button class="btn btn-run" id="updateBtn" onclick="updateScraper()" style="display:none;">Update &amp; restart</button>
             </span>
           </div>
+        </div>
+        <div class="sett-card">
+          <div class="sett-card-head">Extensions</div>
+          <div class="sett-row">
+            <div class="sett-lbl-wrap">
+              <span class="sett-lbl">Extension updates</span>
+              <span class="sett-lbl-hint">Extensions that publish an update URL are checked alongside the scraper.</span>
+            </div>
+            <span id="extUpdateMsg" style="font-size:11px;color:var(--txt3);">—</span>
+          </div>
+          <div id="extUpdateList" style="margin-top:4px;"></div>
         </div>
       </div>
     </div>
@@ -999,15 +1014,68 @@ function copyRssUrl() {
   try { navigator.clipboard.writeText(url); } catch {}
 }
 
+// Paint the yellow dots + Updates panel from the latest status (pushed from the
+// main process on every auto/manual check, and after an update is applied).
+function applyUpdateStatus(s) {
+  if (!s) return;
+  const sc = s.scraper || {};
+  const ex = s.extensions || {};
+
+  const dot = document.getElementById('updateDot');
+  if (dot) dot.style.display = sc.available ? '' : 'none';
+  const edot = document.getElementById('extDot');
+  if (edot) edot.style.display = ex.available ? '' : 'none';
+
+  const upBtn = document.getElementById('updateBtn');
+  if (upBtn) upBtn.style.display = sc.available ? '' : 'none';
+
+  const msg = document.getElementById('updateMsg');
+  if (msg) {
+    if (sc.error) { msg.style.color = '#e58'; msg.textContent = 'Check failed'; }
+    else if (sc.repo === false) { msg.style.color = 'var(--txt3)'; msg.textContent = 'Not a git checkout'; }
+    else if (sc.available) { msg.style.color = '#ffd23b'; msg.textContent = `Update available${sc.behind ? ` (${sc.behind} commit${sc.behind > 1 ? 's' : ''} behind)` : ''}`; }
+    else if (s.checkedAt) { msg.style.color = 'var(--txt2)'; msg.textContent = 'Up to date ✓'; }
+    else { msg.style.color = 'var(--txt3)'; msg.textContent = ''; }
+  }
+
+  const exMsg = document.getElementById('extUpdateMsg');
+  const exList = document.getElementById('extUpdateList');
+  if (exMsg) {
+    if (ex.available) { exMsg.style.color = '#ffd23b'; exMsg.textContent = `${ex.items.length} update${ex.items.length > 1 ? 's' : ''} available`; }
+    else if (s.checkedAt) { exMsg.style.color = 'var(--txt2)'; exMsg.textContent = 'All up to date ✓'; }
+    else { exMsg.style.color = 'var(--txt3)'; exMsg.textContent = '—'; }
+  }
+  if (exList) {
+    exList.innerHTML = (ex.items || []).map(it =>
+      `<div class="sett-row"><div class="sett-lbl-wrap">
+         <span class="sett-lbl">${esc(it.name)}</span>
+         <span class="sett-lbl-hint">${esc(it.installed)} → ${esc(it.latest)}${it.notes ? ' · ' + esc(it.notes) : ''}</span>
+       </div>
+       <button class="btn" onclick="api.openExternal('${esc(it.url)}')">Get update ↗</button></div>`
+    ).join('');
+  }
+}
+
+async function checkUpdatesNow() {
+  const btn = document.getElementById('checkBtn');
+  const msg = document.getElementById('updateMsg');
+  if (btn) btn.disabled = true;
+  if (msg) { msg.style.color = 'var(--txt3)'; msg.textContent = 'Checking…'; }
+  try { applyUpdateStatus(await api.checkUpdates()); }
+  catch (e) { if (msg) { msg.style.color = '#e58'; msg.textContent = 'Error: ' + e.message; } }
+  finally { if (btn) btn.disabled = false; }
+}
+
 async function updateScraper() {
   const btn = document.getElementById('updateBtn');
   const msg = document.getElementById('updateMsg');
-  btn.disabled = true; msg.style.color = 'var(--txt3)'; msg.textContent = 'Checking…';
+  btn.disabled = true; msg.style.color = 'var(--txt3)'; msg.textContent = 'Updating…';
   try {
     const r = await api.updateScraper();
     msg.style.color = r.ok ? 'var(--txt2)' : '#e58';
     msg.textContent = r.ok ? (r.upToDate ? 'Up to date ✓' : 'Updated & restarted ✓') : 'Update failed (see details)';
     if (!r.ok || !r.upToDate) alert(r.message);
+    if (r.ok && !r.upToDate) { const d = document.getElementById('updateDot'); if (d) d.style.display = 'none'; btn.style.display = 'none'; }
   } catch (e) {
     msg.style.color = '#e58'; msg.textContent = 'Error';
     alert('Update error: ' + e.message);
@@ -1125,6 +1193,9 @@ async function init() {
     updateArchiveStats();
     buildUrlFilterChips();
   });
+
+  api.onUpdateStatus(applyUpdateStatus);
+  api.getUpdateStatus().then(applyUpdateStatus).catch(() => {});
 
   document.querySelectorAll('.nav-item[data-panel]').forEach(btn => {
     btn.addEventListener('click', () => {

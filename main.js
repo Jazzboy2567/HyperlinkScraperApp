@@ -837,9 +837,92 @@ ipcMain.handle('update-scraper', async () => {
   }
   const upToDate = /up to date/i.test(text);
   if (!upToDate) { await restartScraper(); }
+  // Clear the scraper dot now that we're current (or re-check if it was a no-op).
+  updateStatus.scraper = { available: false, repo: true, tracked: true, behind: 0 };
+  sendUpdateStatus();
   sendLog('info', upToDate ? 'Scraper already up to date.' : 'Scraper updated and restarted.');
   return { ok: true, upToDate, message: upToDate ? 'Already up to date.' : `Updated & restarted:\n${text}` };
 });
+
+// ── Update checking (non-destructive — just lights the yellow dot) ───────────
+// We never pull during a check; we only fetch and compare, so nothing on disk
+// changes until the user clicks "Update". The renderer shows a dot on the
+// Updates nav (scraper) and the Extensions nav (an extension with a newer
+// version available via its manifest updateUrl).
+let updateStatus = { scraper: { available: false }, extensions: { available: false, items: [] }, checkedAt: 0 };
+
+function sendUpdateStatus() { mainWindow?.webContents.send('update-status', updateStatus); }
+
+async function scraperUpdateCheck() {
+  const dir = path.dirname(config.scraperPath || resolveScraper());
+  const inside = await runGit(dir, ['rev-parse', '--is-inside-work-tree']);
+  if (inside.code !== 0) return { available: false, repo: false };
+  await runGit(dir, ['fetch', '--quiet']);
+  const rl = await runGit(dir, ['rev-list', '--count', 'HEAD..@{upstream}']);
+  if (rl.code !== 0) return { available: false, repo: true, tracked: false };
+  const behind = parseInt(rl.out, 10) || 0;
+  return { available: behind > 0, repo: true, tracked: true, behind };
+}
+
+function fetchJson(url, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    let mod;
+    try { mod = new URL(url).protocol === 'http:' ? http : require('https'); }
+    catch (e) { return reject(e); }
+    const req = mod.get(url, { headers: { 'User-Agent': 'LinkWatch' } }, res => {
+      if ((res.statusCode || 0) >= 400) { res.resume(); return reject(new Error('HTTP ' + res.statusCode)); }
+      let d = ''; res.setEncoding('utf8');
+      res.on('data', c => { d += c; if (d.length > 200000) req.destroy(); });
+      res.on('end', () => { try { resolve(JSON.parse(d)); } catch (e) { reject(e); } });
+    });
+    req.on('error', reject);
+    req.setTimeout(timeoutMs, () => req.destroy(new Error('timeout')));
+  });
+}
+
+function cmpVersion(a, b) {
+  const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const d = (pa[i] || 0) - (pb[i] || 0); if (d) return d; }
+  return 0;
+}
+
+async function extensionsUpdateCheck() {
+  const items = [];
+  for (const e of extensions.list()) {
+    if (!e.updateUrl) continue;   // only extensions that opt in get checked
+    try {
+      const meta = await fetchJson(e.updateUrl);
+      const latest = meta && (meta.version || meta.latest);
+      if (latest && cmpVersion(latest, e.version) > 0) {
+        items.push({ id: e.id, name: e.name, installed: e.version, latest,
+                     url: meta.downloadUrl || meta.url || e.updateUrl, notes: meta.notes || '' });
+      }
+    } catch (err) { sendLog('warn', `Update check failed for extension "${e.id}": ${err.message}`); }
+  }
+  return { available: items.length > 0, items };
+}
+
+async function checkAllUpdates(reason = 'auto') {
+  const [scraper, ext] = await Promise.all([
+    scraperUpdateCheck().catch(e => ({ available: false, error: e.message })),
+    extensionsUpdateCheck().catch(e => ({ available: false, items: [], error: e.message })),
+  ]);
+  updateStatus = { scraper, extensions: ext, checkedAt: Date.now() };
+  sendUpdateStatus();
+  sendLog('info', `Update check (${reason}): scraper ${scraper.available ? 'behind ' + scraper.behind : 'current'}, ` +
+                  `extensions ${ext.available ? ext.items.length + ' update(s)' : 'current'}.`);
+  return updateStatus;
+}
+
+ipcMain.handle('check-updates', async () => { await checkAllUpdates('manual'); return updateStatus; });
+ipcMain.handle('get-update-status', () => updateStatus);
+
+// Automatic checks: shortly after launch, then every 3 hours.
+function startUpdateChecks() {
+  setTimeout(() => checkAllUpdates('startup').catch(() => {}), 8000);
+  setInterval(() => checkAllUpdates('interval').catch(() => {}), 3 * 60 * 60 * 1000);
+}
 
 // ── Window ─────────────────────────────────────────────────────────────────
 function createWindow() {
@@ -863,6 +946,7 @@ function createWindow() {
     // keep idle memory down. Arm the schedulers so scheduled scrapes still fire
     // (they wake the server on demand).
     restartAllSchedulers();
+    startUpdateChecks();
   });
   mainWindow.on('closed', () => { mainWindow = null; });
 }

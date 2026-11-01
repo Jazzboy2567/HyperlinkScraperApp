@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('api', {
   getRssInfo: () => ipcRenderer.invoke('get-rss-info'),
   getScraperInfo: () => ipcRenderer.invoke('get-scraper-info'),
   updateScraper: () => ipcRenderer.invoke('update-scraper'),
+  checkUpdates: () => ipcRenderer.invoke('check-updates'),
+  getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
 
   listExtensions: () => ipcRenderer.invoke('list-extensions'),
   setExtensionEnabled: (id, on) => ipcRenderer.invoke('set-extension-enabled', id, on),
@@ -32,5 +34,6 @@ contextBridge.exposeInMainWorld('api', {
   onServerLog: (cb) => ipcRenderer.on('server-log', (_, d) => cb(d)),
   onServerStatus: (cb) => ipcRenderer.on('server-status', (_, s) => cb(s)),
   onNewResults: (cb) => ipcRenderer.on('new-results', (_, d) => cb(d)),
+  onUpdateStatus: (cb) => ipcRenderer.on('update-status', (_, s) => cb(s)),
   removeAllListeners: (ch) => ipcRenderer.removeAllListeners(ch),
 });
