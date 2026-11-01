@@ -80,11 +80,45 @@ function saveConfig() {
 function saveResults() { saveJSON(RESULTS_PATH, results); }
 function saveSeenLinks() { saveJSON(SEEN_PATH, [...seenLinks]); }
 
+// ── Link titles ──────────────────────────────────────────────────────────────
+// Some scraped links have no anchor text. Rather than leave them "Untitled",
+// derive a readable title from the URL — job-board slugs carry it, e.g.
+//   /jobs/view/software-engineer-at-applied-materials-4483999187
+function slugToTitle(slug) {
+  try { slug = decodeURIComponent(slug); } catch (_) {}
+  const s = String(slug).replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!s) return null;
+  return s.replace(/\b\w/g, c => c.toUpperCase());
+}
+function deriveTitleFromUrl(url) {
+  try {
+    const u = new URL(url);
+    // LinkedIn / common job slug: /jobs/view/<title>-at-<company>-<id>
+    const job = u.pathname.match(/\/jobs?\/view\/(.+?)-\d{6,}/) || u.pathname.match(/\/jobs?\/(.+?)-\d{6,}/);
+    if (job) {
+      let slug = job[1];
+      const at = slug.indexOf('-at-');
+      if (at > 0) slug = slug.slice(0, at);     // drop the "-at-company" tail
+      const t = slugToTitle(slug);
+      if (t) return t;
+    }
+    // Generic: the last meaningful path segment, else the host.
+    const seg = u.pathname.split('/').filter(Boolean).pop();
+    if (seg && /[a-z]/i.test(seg)) { const t = slugToTitle(seg.replace(/\.[a-z0-9]+$/i, '')); if (t) return t; }
+    return u.hostname.replace(/^www\./, '');
+  } catch (_) { return null; }
+}
+function linkTitle(l) {
+  const t = ((l.text && l.text.trim()) || (l.title && l.title.trim()) || '');
+  if (t && t.toLowerCase() !== 'untitled') return t;   // real title wins
+  return deriveTitleFromUrl(l.url) || t || 'Untitled';  // else derive from the URL
+}
+
 // ── Extensions ───────────────────────────────────────────────────────────────
 // Convert a scraped link into a stored result link, carrying through any fields
 // a ranker added (score, badges, matched skills) so the UI can show them.
 function toLinkEntry(l) {
-  const e = { title: l.text || l.title || 'Untitled', url: l.url };
+  const e = { title: linkTitle(l), url: l.url };
   if (typeof l.score === 'number') e.score = l.score;
   if (Array.isArray(l.badges) && l.badges.length) e.badges = l.badges;
   if (Array.isArray(l.matchedSkills) && l.matchedSkills.length) e.matchedSkills = l.matchedSkills;
@@ -533,6 +567,10 @@ async function scrapeUrl(urlEntry, opts = {}) {
     newLinks.forEach(link => seenLinks.add(normalizeUrl(link.url)));
     if (newLinks.length > 0) saveSeenLinks();
   }
+
+  // Give every link a declared title (from the URL slug when there's no anchor
+  // text) so the ranker scores and dedups on a real title, not a blank.
+  newLinks.forEach(l => { if (!l.text || !l.text.trim()) l.text = linkTitle(l); });
 
   // Run enabled ranker extensions (sort / filter / annotate). A failure here must
   // never break scraping, so fall back to the raw links on any error.
