@@ -764,7 +764,13 @@ ipcMain.handle('get-rss-info', () => ({
 // ── Extensions IPC ───────────────────────────────────────────────────────────
 ipcMain.handle('list-extensions', () => extensions.list());
 ipcMain.handle('set-extension-enabled', (_, id, on) => extensions.setEnabled(id, on));
-ipcMain.handle('reload-extensions', () => { extensions.reload(); return extensions.list(); });
+ipcMain.handle('reload-extensions', () => {
+  extensions.reload();
+  // Re-run the update check so the Extensions dot reflects the freshly-read
+  // manifests (e.g. clears right after you actually update an extension).
+  checkAllUpdates('reload').catch(() => {});
+  return extensions.list();
+});
 ipcMain.handle('get-extensions-dir', () => extensions.dirs());
 ipcMain.handle('open-extensions-dir', () => { shell.openPath(EXT_USER_DIR); return EXT_USER_DIR; });
 
