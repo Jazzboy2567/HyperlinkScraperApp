@@ -600,6 +600,15 @@ a:hover { text-decoration: underline; }
 .ext-card { position: relative; background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; gap: 12px; transition: border-color .12s, background .12s; }
 .ext-del { width: 22px; height: 22px; line-height: 20px; text-align: center; border: 1px solid var(--line); border-radius: 5px; background: var(--bg3); color: var(--txt2); font-size: 12px; cursor: pointer; padding: 0; transition: background .12s, color .12s, border-color .12s; }
 .ext-del:hover { background: rgba(255,120,120,0.18); color: #ff8a8a; border-color: #ff8a8a; }
+
+/* Themed dialogs (replace the browser's native alert/confirm so they match the app) */
+.ui-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 1000; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+.ui-modal-overlay.show { display: flex; }
+.ui-modal { background: var(--bg2); border: 1px solid var(--line2); border-radius: 10px; width: min(420px, calc(100vw - 48px)); padding: 18px 18px 14px; box-shadow: 0 14px 44px rgba(0,0,0,0.55); }
+.ui-modal-title { font-size: 13px; font-weight: 700; color: var(--txt); margin-bottom: 8px; letter-spacing: .3px; }
+.ui-modal-body { font-size: 12px; color: var(--txt2); line-height: 1.55; white-space: pre-wrap; word-break: break-word; margin-bottom: 16px; }
+.ui-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.ui-modal-ok.danger { background: rgba(255,120,120,0.16); color: #ff8a8a; border-color: #ff8a8a; }
 .ext-card:hover { border-color: var(--line2); }
 .ext-card.on { border-color: rgba(232,255,71,0.28); background: linear-gradient(var(--bg2), var(--bg2)) padding-box, rgba(232,255,71,0.02); }
 .ext-ico { width: 38px; height: 38px; border-radius: 8px; background: var(--bg3); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--txt3); flex-shrink: 0; }
@@ -1097,13 +1106,67 @@ async function updateExtension(id, btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
   try {
     const r = await api.updateExtension(id);
-    if (!r.ok) alert(r.message);
+    if (!r.ok) uiModal.alert(r.message);
     // Success refreshes the list via the pushed update-status; re-render cards too.
     if (r.ok && typeof renderExtensions === 'function') renderExtensions();
     if (r.ok && typeof applyExtensionsToResults === 'function') applyExtensionsToResults();
-  } catch (e) { alert('Update error: ' + e.message); }
+  } catch (e) { uiModal.alert('Update error: ' + e.message); }
   finally { if (btn) { btn.disabled = false; btn.textContent = 'Update'; } }
 }
+
+// Themed dialogs so confirms/alerts match the app instead of the OS popup.
+const uiModal = (() => {
+  let overlay;
+  function ensure() {
+    if (overlay) return;
+    overlay = document.createElement('div');
+    overlay.className = 'ui-modal-overlay';
+    overlay.innerHTML =
+      '<div class="ui-modal" role="dialog" aria-modal="true">' +
+      '<div class="ui-modal-title"></div>' +
+      '<div class="ui-modal-body"></div>' +
+      '<div class="ui-modal-actions">' +
+      '<button class="btn ui-modal-cancel" type="button"></button>' +
+      '<button class="btn btn-run ui-modal-ok" type="button"></button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+  }
+  function open({ title, message, okText, cancelText, danger }) {
+    ensure();
+    return new Promise(resolve => {
+      overlay.querySelector('.ui-modal-title').textContent = title || '';
+      overlay.querySelector('.ui-modal-body').textContent = message || '';
+      const ok = overlay.querySelector('.ui-modal-ok');
+      const cancel = overlay.querySelector('.ui-modal-cancel');
+      ok.textContent = okText || 'OK';
+      ok.classList.toggle('danger', !!danger);
+      cancel.textContent = cancelText || 'Cancel';
+      cancel.style.display = cancelText === null ? 'none' : '';
+      function done(val) {
+        overlay.classList.remove('show');
+        ok.removeEventListener('click', onOk);
+        cancel.removeEventListener('click', onCancel);
+        document.removeEventListener('keydown', onKey);
+        overlay.removeEventListener('mousedown', onBackdrop);
+        resolve(val);
+      }
+      function onOk() { done(true); }
+      function onCancel() { done(false); }
+      function onKey(e) { if (e.key === 'Escape') onCancel(); else if (e.key === 'Enter') onOk(); }
+      function onBackdrop(e) { if (e.target === overlay) onCancel(); }
+      ok.addEventListener('click', onOk);
+      cancel.addEventListener('click', onCancel);
+      document.addEventListener('keydown', onKey);
+      overlay.addEventListener('mousedown', onBackdrop);
+      overlay.classList.add('show');
+      ok.focus();
+    });
+  }
+  return {
+    confirm: (message, opts = {}) => open({ title: opts.title || 'Confirm', message, okText: opts.okText || 'Confirm', cancelText: opts.cancelText || 'Cancel', danger: opts.danger }),
+    alert: (message, opts = {}) => open({ title: opts.title || 'Notice', message, okText: opts.okText || 'OK', cancelText: null }).then(() => {}),
+  };
+})();
 
 async function updateApp() {
   const btn = document.getElementById('appUpdateBtn');
@@ -1111,10 +1174,10 @@ async function updateApp() {
   btn.disabled = true; msg.style.color = 'var(--txt3)'; msg.textContent = 'Updating…';
   try {
     const r = await api.updateApp();
-    if (!r.ok) { msg.style.color = '#e58'; msg.textContent = 'Update failed'; alert(r.message); }
+    if (!r.ok) { msg.style.color = '#e58'; msg.textContent = 'Update failed'; uiModal.alert(r.message); }
     else if (r.upToDate) { msg.style.color = 'var(--txt2)'; msg.textContent = 'Up to date ✓'; btn.style.display = 'none'; }
     else { msg.style.color = 'var(--txt2)'; msg.textContent = 'Updated — relaunching…'; }
-  } catch (e) { msg.style.color = '#e58'; msg.textContent = 'Error'; alert('Update error: ' + e.message); }
+  } catch (e) { msg.style.color = '#e58'; msg.textContent = 'Error'; uiModal.alert('Update error: ' + e.message); }
   finally { btn.disabled = false; }
 }
 
@@ -1136,11 +1199,11 @@ async function updateScraper() {
     const r = await api.updateScraper();
     msg.style.color = r.ok ? 'var(--txt2)' : '#e58';
     msg.textContent = r.ok ? (r.upToDate ? 'Up to date ✓' : 'Updated & restarted ✓') : 'Update failed (see details)';
-    if (!r.ok || !r.upToDate) alert(r.message);
+    if (!r.ok || !r.upToDate) uiModal.alert(r.message);
     if (r.ok && !r.upToDate) { const d = document.getElementById('updateDot'); if (d) d.style.display = 'none'; btn.style.display = 'none'; }
   } catch (e) {
     msg.style.color = '#e58'; msg.textContent = 'Error';
-    alert('Update error: ' + e.message);
+    uiModal.alert('Update error: ' + e.message);
   } finally {
     btn.disabled = false;
   }
@@ -1197,17 +1260,17 @@ async function renderExtensions() {
 }
 
 async function toggleExtension(id, on) {
-  try { await api.setExtensionEnabled(id, on); } catch (e) { alert('Could not toggle: ' + e.message); return; }
+  try { await api.setExtensionEnabled(id, on); } catch (e) { uiModal.alert('Could not toggle: ' + e.message); return; }
   await applyExtensionsToResults();
 }
 
 async function deleteExtension(id, name) {
-  if (!confirm(`Delete the "${name}" extension? This removes its folder from disk. This can't be undone.`)) return;
+  if (!(await uiModal.confirm(`Delete the "${name}" extension? This removes its folder from disk and can't be undone.`, { title: 'Delete extension', okText: 'Delete', danger: true }))) return;
   try {
     const r = await api.deleteExtension(id);
-    if (!r.ok) { alert(r.message || 'Could not delete.'); return; }
-  } catch (e) { alert('Delete error: ' + e.message); return; }
-  await applyExtensionsToResults();   // re-render cards + refresh results/dots
+    if (!r.ok) { uiModal.alert(r.message || 'Could not delete.'); return; }
+  } catch (e) { uiModal.alert('Delete error: ' + e.message); return; }
+  renderExtensions();   // just refresh the cards — deleting doesn't require a re-rank
 }
 
 async function reloadExtensions() {
