@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, shell, Menu, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -1084,9 +1084,55 @@ function startUpdateChecks() {
 }
 
 // ── Window ─────────────────────────────────────────────────────────────────
+const WIN_MIN_W = 1100, WIN_MIN_H = 700;
+
+// Take the window size/position we saved last time and make it safe to reuse: clamp the
+// size to the current monitor's work area (so a huge saved size can't exceed the screen)
+// and, if the saved spot is off-screen (e.g. the monitor was unplugged), re-center on the
+// matching display. Returns null when there's nothing usable saved (→ fall back to default).
+function sanitizeBounds(b) {
+  if (!b || typeof b.width !== 'number' || typeof b.height !== 'number') return null;
+  let display;
+  try { display = screen.getDisplayMatching({ x: Math.round(b.x) || 0, y: Math.round(b.y) || 0, width: Math.round(b.width), height: Math.round(b.height) }); }
+  catch (_) { try { display = screen.getPrimaryDisplay(); } catch (_) { return null; } }
+  const wa = display.workArea;
+  const width  = Math.min(Math.max(Math.round(b.width),  WIN_MIN_W), wa.width);
+  const height = Math.min(Math.max(Math.round(b.height), WIN_MIN_H), wa.height);
+  let x = Math.round(b.x), y = Math.round(b.y);
+  // Visible = the title bar sits inside the work area and enough of the window is on-screen.
+  const visible = Number.isFinite(x) && Number.isFinite(y) &&
+    x + width > wa.x + 60 && x < wa.x + wa.width - 60 &&
+    y >= wa.y - 0 && y < wa.y + wa.height - 60;
+  if (!visible) {
+    x = Math.round(wa.x + (wa.width - width) / 2);
+    y = Math.round(wa.y + (wa.height - height) / 2);
+  } else {
+    x = Math.min(Math.max(x, wa.x), wa.x + wa.width - width);
+    y = Math.min(Math.max(y, wa.y), wa.y + wa.height - height);
+  }
+  return { x, y, width, height };
+}
+
+function saveWindowState() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    const maximized = mainWindow.isMaximized();
+    const b = mainWindow.getNormalBounds();   // size when NOT maximized/minimized
+    config.windowBounds = { x: b.x, y: b.y, width: b.width, height: b.height, maximized };
+    saveConfig();
+  } catch (_) {}
+}
+
+let saveWinTimer = null;
+function scheduleSaveWindowState() { clearTimeout(saveWinTimer); saveWinTimer = setTimeout(saveWindowState, 500); }
+
 function createWindow() {
+  const saved = sanitizeBounds(config.windowBounds);
   mainWindow = new BrowserWindow({
-    width: 1400, height: 900, minWidth: 1100, minHeight: 700,
+    ...(saved
+      ? { x: saved.x, y: saved.y, width: saved.width, height: saved.height }
+      : { width: 1400, height: 900 }),
+    minWidth: WIN_MIN_W, minHeight: WIN_MIN_H,
     backgroundColor: '#060608',
     autoHideMenuBar: true,
     webPreferences: {
@@ -1096,6 +1142,7 @@ function createWindow() {
     },
     show: false
   });
+  if (config.windowBounds && config.windowBounds.maximized) mainWindow.maximize();
   Menu.setApplicationMenu(null);
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
   mainWindow.once('ready-to-show', async () => {
@@ -1109,6 +1156,12 @@ function createWindow() {
     // Restore the scraper if it was left on when the app was last closed.
     if (config.serverOn) { keepServerWarm = true; startScraperServer(); }
   });
+  // Remember size/position across launches (debounced while dragging/resizing; also on close).
+  mainWindow.on('resize', scheduleSaveWindowState);
+  mainWindow.on('move', scheduleSaveWindowState);
+  mainWindow.on('maximize', scheduleSaveWindowState);
+  mainWindow.on('unmaximize', scheduleSaveWindowState);
+  mainWindow.on('close', saveWindowState);
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
