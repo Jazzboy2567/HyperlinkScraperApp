@@ -79,6 +79,15 @@ function saveConfig() {
 }
 function saveResults() { saveJSON(RESULTS_PATH, results); }
 function saveSeenLinks() { saveJSON(SEEN_PATH, [...seenLinks]); }
+// Commit a batch of normalized URLs to the seen-set. Callers run this only AFTER the
+// run's result has been durably stored, so a failure mid-run never marks a job seen
+// without ever showing it (it simply reappears on the next run).
+function commitSeenLinks(urls) {
+  if (!Array.isArray(urls) || !urls.length) return;
+  let added = 0;
+  for (const u of urls) { if (!seenLinks.has(u)) { seenLinks.add(u); added++; } }
+  if (added > 0) saveSeenLinks();
+}
 
 // ── Link titles ──────────────────────────────────────────────────────────────
 // Some scraped links have no anchor text. Rather than leave them "Untitled",
@@ -573,14 +582,14 @@ async function scrapeUrl(urlEntry, opts = {}) {
     }
   }
 
+  // Decide which links are "new" (not seen before) but do NOT commit them to the
+  // seen-set here. The caller records them as seen only once it has durably stored the
+  // result (see runScheduled / run-test), so an error during ranking/saving can never
+  // mark a job seen without ever showing it.
   const newLinks = affectMemory
     ? filtered.filter(link => !seenLinks.has(normalizeUrl(link.url)))
     : filtered;
-
-  if (affectMemory) {
-    newLinks.forEach(link => seenLinks.add(normalizeUrl(link.url)));
-    if (newLinks.length > 0) saveSeenLinks();
-  }
+  const newUrls = affectMemory ? newLinks.map(link => normalizeUrl(link.url)) : [];
 
   // Give every link a declared title (from the URL slug when there's no anchor
   // text) so the ranker scores and dedups on a real title, not a blank.
@@ -598,7 +607,7 @@ async function scrapeUrl(urlEntry, opts = {}) {
     ranked = newLinks;
   }
 
-  return { links: ranked, total: filtered.length, urlEntry };
+  return { links: ranked, total: filtered.length, urlEntry, newUrls };
 }
 
 // ── Scheduler ──────────────────────────────────────────────────────────────
@@ -717,6 +726,7 @@ async function runScheduled(urlEntry) {
     results.unshift(entry);
     if (results.length > MAX_RESULTS) results = results.slice(0, MAX_RESULTS);
     saveResults();
+    commitSeenLinks(result.newUrls);   // only now that the result is on disk
     sendLog('success', `[${urlEntry.nickname || urlEntry.url}] Found ${result.links.length} new links`);
     mainWindow?.webContents.send('new-results', entry);
     return true;
@@ -779,6 +789,7 @@ ipcMain.handle('run-test', async (_, urlEntry, opts) => {
   if (affectMemory) {
     results.unshift(entry);
     saveResults();
+    commitSeenLinks(result.newUrls);   // only now that the result is on disk
     mainWindow?.webContents.send('new-results', entry);
   }
 
