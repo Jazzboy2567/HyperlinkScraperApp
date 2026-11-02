@@ -609,6 +609,31 @@ a:hover { text-decoration: underline; }
 .ui-modal-body { font-size: 12px; color: var(--txt2); line-height: 1.55; white-space: pre-wrap; word-break: break-word; margin-bottom: 16px; }
 .ui-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .ui-modal-ok.danger { background: rgba(255,120,120,0.16); color: #ff8a8a; border-color: #ff8a8a; }
+
+/* Applications tracker */
+.apps-body { padding: 12px 18px; overflow: auto; }
+.apps-empty { font-size: 12px; color: var(--txt3); padding: 22px 2px; line-height: 1.6; }
+.apps-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.apps-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--txt3); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg1); z-index: 1; }
+.apps-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); color: var(--txt2); vertical-align: top; }
+.apps-table tr:hover td { background: var(--bg2); }
+.apps-pos { color: var(--txt); font-weight: 600; }
+.apps-company { color: var(--txt2); }
+.apps-link { color: var(--acc3); font-size: 11px; cursor: pointer; }
+.apps-link:hover { text-decoration: underline; }
+.apps-notes { width: 100%; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--txt2); font-family: var(--font-sans); font-size: 11px; padding: 3px 5px; resize: vertical; min-height: 24px; box-sizing: border-box; }
+.apps-notes:hover { border-color: var(--line); }
+.apps-notes:focus { border-color: var(--line2); background: var(--bg1); outline: none; }
+.apps-date { background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--txt2); font-family: var(--font-mono); font-size: 11px; padding: 3px 4px; }
+.apps-date:hover { border-color: var(--line); } .apps-date:focus { border-color: var(--line2); outline: none; }
+.apps-status { font-size: 11px; border-radius: 4px; padding: 3px 6px; border: 1px solid var(--line); background: var(--bg3); cursor: pointer; font-weight: 600; }
+.apps-status.status-applied { color: var(--acc3); } .apps-status.status-heard_back { color: var(--acc); }
+.apps-status.status-interview { color: #c79bff; } .apps-status.status-offer { color: var(--acc4); } .apps-status.status-rejected { color: var(--txt3); }
+.apps-del { border: none; background: transparent; color: var(--txt3); cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px; }
+.apps-del:hover { background: rgba(255,120,120,0.16); color: #ff8a8a; }
+.link-track-btn { border: 1px solid var(--line); background: transparent; color: var(--txt3); font-size: 10px; padding: 2px 7px; border-radius: 4px; cursor: pointer; margin-right: 6px; white-space: nowrap; }
+.link-track-btn:hover { border-color: var(--acc4); color: var(--acc4); }
+.link-track-btn.tracked { border-color: var(--acc4); color: var(--acc4); cursor: default; }
 .ext-card:hover { border-color: var(--line2); }
 .ext-card.on { border-color: rgba(232,255,71,0.28); background: linear-gradient(var(--bg2), var(--bg2)) padding-box, rgba(232,255,71,0.02); }
 .ext-ico { width: 38px; height: 38px; border-radius: 8px; background: var(--bg3); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--txt3); flex-shrink: 0; }
@@ -734,6 +759,9 @@ a:hover { text-decoration: underline; }
     <button class="nav-item" data-panel="panel-archive" title="Archive">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
     </button>
+    <button class="nav-item" data-panel="panel-applications" title="Applications">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
+    </button>
     <button class="nav-item" data-panel="panel-extensions" title="Extensions">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.7 2.7 0 1 1 0 5.4H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.7 2.7 0 1 1 5.4 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg>
       <span class="nav-badge update" id="extDot" style="display:none;"></span>
@@ -839,6 +867,18 @@ a:hover { text-decoration: underline; }
           <div class="empty-msg">No history yet</div>
         </div>
       </div>
+    </div>
+
+    <!-- APPLICATIONS PANEL -->
+    <div class="panel" id="panel-applications">
+      <div class="panel-head">
+        <span class="panel-title">APPLICATIONS</span>
+        <span class="panel-sub" id="appsCount"></span>
+        <div class="panel-head-right">
+          <button class="btn" id="appsExportBtn" onclick="exportApplicationsCsv()">Export CSV</button>
+        </div>
+      </div>
+      <div class="apps-body" id="appsBody"></div>
     </div>
 
     <!-- EXTENSIONS PANEL -->
@@ -1299,11 +1339,92 @@ async function openExtensionsDir() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// APPLICATIONS TRACKER
+// ═══════════════════════════════════════════════════════════════════
+let trackedUrls = new Set();   // urls already in the tracker (for the Track buttons)
+const APP_STATUSES = [
+  ['applied', 'Applied'], ['heard_back', 'Heard back'], ['interview', 'Interview'],
+  ['offer', 'Offer'], ['rejected', 'Rejected'],
+];
+const APP_STATUS_LABEL = Object.fromEntries(APP_STATUSES);
+
+async function refreshTrackedUrls() {
+  try { trackedUrls = new Set((await api.getApplications()).map(a => a.url)); } catch { trackedUrls = new Set(); }
+}
+
+async function renderApplications() {
+  const body = document.getElementById('appsBody');
+  if (!body) return;
+  let apps = [];
+  try { apps = await api.getApplications(); } catch { apps = []; }
+  trackedUrls = new Set(apps.map(a => a.url));
+  const countEl = document.getElementById('appsCount');
+  if (countEl) countEl.textContent = apps.length ? `${apps.length} tracked` : '';
+  if (!apps.length) {
+    body.innerHTML = `<div class="apps-empty">No applications tracked yet.<br>Open <b>Results</b> and click <b>+ Track</b> on a job to add it here — its link, company and title fill in automatically.</div>`;
+    return;
+  }
+  const opts = sel => APP_STATUSES.map(([v, l]) => `<option value="${v}"${v === sel ? ' selected' : ''}>${l}</option>`).join('');
+  const rows = apps.map(a => {
+    const u = encodeURIComponent(a.url);
+    return `<tr>
+      <td><div class="apps-pos">${esc(a.title || 'Untitled')}</div></td>
+      <td class="apps-company">${esc(a.company || '')}</td>
+      <td><select class="apps-status status-${esc(a.status)}" onchange="updateApp('${a.id}','status',this.value); this.className='apps-status status-'+this.value;">${opts(a.status)}</select></td>
+      <td><input type="date" class="apps-date" value="${esc(a.dateApplied || '')}" onchange="updateApp('${a.id}','dateApplied',this.value)"></td>
+      <td><span class="apps-link" onclick="openLink(decodeURIComponent('${u}'))" title="${esc(a.url)}">open ↗</span></td>
+      <td><textarea class="apps-notes" rows="1" placeholder="notes…" onblur="updateApp('${a.id}','notes',this.value)">${esc(a.notes || '')}</textarea></td>
+      <td><button class="apps-del" title="Remove" onclick="removeApp('${a.id}', decodeURIComponent('${encodeURIComponent(a.title || '')}'))">✕</button></td>
+    </tr>`;
+  }).join('');
+  body.innerHTML = `<table class="apps-table">
+    <thead><tr><th>Position</th><th>Company</th><th>Status</th><th>Applied</th><th>Link</th><th>Notes</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+async function updateApp(id, key, value) {
+  try { await api.updateApplication(id, { [key]: value }); }
+  catch (e) { uiModal.alert('Could not save: ' + e.message); }
+}
+
+async function removeApp(id, title) {
+  if (!(await uiModal.confirm(`Remove "${title || 'this application'}" from your tracker?`, { title: 'Remove application', okText: 'Remove', danger: true }))) return;
+  try { await api.deleteApplication(id); } catch (e) { uiModal.alert('Could not remove: ' + e.message); return; }
+  await refreshTrackedUrls();
+  renderApplications();
+}
+
+async function trackApplication(url, title, btn) {
+  try {
+    const r = await api.addApplication({ url, title });
+    if (!r.ok) { uiModal.alert(r.message || 'Could not track.'); return; }
+    trackedUrls.add(url);
+    if (btn) { btn.classList.add('tracked'); btn.textContent = '✓ Tracked'; btn.onclick = null; }
+  } catch (e) { uiModal.alert('Track error: ' + e.message); }
+}
+
+function csvCell(s) { s = String(s == null ? '' : s); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+async function exportApplicationsCsv() {
+  let apps = [];
+  try { apps = await api.getApplications(); } catch {}
+  if (!apps.length) { uiModal.alert('No applications to export yet.'); return; }
+  const lines = [['Position', 'Company', 'Status', 'Applied', 'Link', 'Notes'].join(',')];
+  for (const a of apps) lines.push([a.title, a.company, APP_STATUS_LABEL[a.status] || a.status, a.dateApplied, a.url, a.notes].map(csvCell).join(','));
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv' });
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = href; link.download = 'applications.csv';
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════════
 async function init() {
   config = await api.getConfig();
   results = await api.getResults();
+  await refreshTrackedUrls();   // so result rows know which jobs are already tracked
 
   applySettingsToUI();
   buildUrlList();
@@ -1346,6 +1467,7 @@ async function init() {
       btn.classList.add('active');
       document.getElementById(btn.dataset.panel).classList.add('active');
       if (btn.dataset.panel === 'panel-extensions') renderExtensions();
+      if (btn.dataset.panel === 'panel-applications') renderApplications();
     });
   });
 
@@ -1616,6 +1738,11 @@ function renderRunGroup(entry, ns, linksOverride) {
     html += `<div class="link-url" onclick="openLink('${esc(link.url)}')" title="${esc(link.url)}">${esc(link.url)}</div>`;
     html += badgesHtml(link);
     html += `</div>`;
+    const tracked = trackedUrls.has(link.url);
+    const u = encodeURIComponent(link.url), t = encodeURIComponent(link.title || '');
+    html += tracked
+      ? `<button class="link-track-btn tracked" title="Already in your Applications">✓ Tracked</button>`
+      : `<button class="link-track-btn" title="Add to your Applications tracker" onclick="trackApplication(decodeURIComponent('${u}'), decodeURIComponent('${t}'), this)">+ Track</button>`;
     html += `<button class="link-open-btn" onclick="openLink('${esc(link.url)}')">open ↗</button>`;
     html += `</div>`;
   });

@@ -34,6 +34,12 @@ contextBridge.exposeInMainWorld('api', {
   openExtensionsDir: () => ipcRenderer.invoke('open-extensions-dir'),
   rerankResults: () => ipcRenderer.invoke('rerank-results'),
 
+  getApplications: () => ipcRenderer.invoke('get-applications'),
+  addApplication: (data) => ipcRenderer.invoke('add-application', data),
+  updateApplication: (id, patch) => ipcRenderer.invoke('update-application', id, patch),
+  deleteApplication: (id) => ipcRenderer.invoke('delete-application', id),
+  isTracked: (url) => ipcRenderer.invoke('is-tracked', url),
+
   onServerLog: (cb) => ipcRenderer.on('server-log', (_, d) => cb(d)),
   onServerStatus: (cb) => ipcRenderer.on('server-status', (_, s) => cb(s)),
   onNewResults: (cb) => ipcRenderer.on('new-results', (_, d) => cb(d)),

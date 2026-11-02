@@ -12,6 +12,7 @@ const USER_DATA = app.getPath('userData');
 const CONFIG_PATH = path.join(USER_DATA, 'config.json');
 const RESULTS_PATH = path.join(USER_DATA, 'results.json');
 const SEEN_PATH = path.join(USER_DATA, 'seen_links.json');
+const APPS_PATH = path.join(USER_DATA, 'applications.json');   // job-application tracker
 
 // Extensions: bundled (ships with the app, updates via git) + user (yours and
 // ones others share; lives in userData so app updates never clobber them).
@@ -38,6 +39,7 @@ let serverReady = false;
 let schedulerTimers = {};
 let seenLinks = new Set();
 let results = [];
+let applications = [];   // tracked job applications
 let config = {};
 let liveScraperPort = null;
 let scrapeInProgress = {};
@@ -70,6 +72,7 @@ function loadAll() {
   config.scraperPath = resolveScraper();   // main project if present, else bundled
   results = loadJSON(RESULTS_PATH, []);
   seenLinks = new Set(loadJSON(SEEN_PATH, []));
+  applications = loadJSON(APPS_PATH, []);
 }
 
 function saveConfig() {
@@ -79,6 +82,7 @@ function saveConfig() {
 }
 function saveResults() { saveJSON(RESULTS_PATH, results); }
 function saveSeenLinks() { saveJSON(SEEN_PATH, [...seenLinks]); }
+function saveApplications() { saveJSON(APPS_PATH, applications); }
 
 // ── Link titles ──────────────────────────────────────────────────────────────
 // Some scraped links have no anchor text. Rather than leave them "Untitled",
@@ -112,6 +116,15 @@ function linkTitle(l) {
   const t = ((l.text && l.text.trim()) || (l.title && l.title.trim()) || '');
   if (t && t.toLowerCase() !== 'untitled') return t;   // real title wins
   return deriveTitleFromUrl(l.url) || t || 'Untitled';  // else derive from the URL
+}
+
+// Best-effort employer name from a job URL (the "-at-<company>-<id>" slug, else host).
+function deriveCompanyFromUrl(url) {
+  try {
+    const m = (url || '').match(/-at-([a-z0-9][a-z0-9-]*?)-\d{6,}/i);
+    if (m) return slugToTitle(m[1]) || '';
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch (_) { return ''; }
 }
 
 // ── Extensions ───────────────────────────────────────────────────────────────
@@ -824,6 +837,47 @@ ipcMain.handle('delete-extension', async (_, id) => {
 });
 ipcMain.handle('get-extensions-dir', () => extensions.dirs());
 ipcMain.handle('open-extensions-dir', () => { shell.openPath(EXT_USER_DIR); return EXT_USER_DIR; });
+
+// ── Applications tracker IPC ──────────────────────────────────────────────────
+ipcMain.handle('get-applications', () => applications);
+
+ipcMain.handle('add-application', (_, data) => {
+  const url = ((data && data.url) || '').trim();
+  if (!url) return { ok: false, message: 'No URL.' };
+  const existing = applications.find(a => a.url === url);
+  if (existing) return { ok: true, duplicate: true, entry: existing };
+  const entry = {
+    id: 'app_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    url,
+    title: ((data.title && data.title.trim()) || deriveTitleFromUrl(url) || 'Untitled'),
+    company: ((data.company && data.company.trim()) || deriveCompanyFromUrl(url)),
+    status: data.status || 'applied',
+    dateApplied: data.dateApplied || new Date().toISOString().slice(0, 10),
+    notes: data.notes || '',
+    createdAt: new Date().toISOString(),
+  };
+  applications.unshift(entry);
+  saveApplications();
+  return { ok: true, entry };
+});
+
+ipcMain.handle('update-application', (_, id, patch) => {
+  const a = applications.find(x => x.id === id);
+  if (!a) return { ok: false, message: 'Not found.' };
+  for (const k of ['title', 'company', 'status', 'dateApplied', 'notes']) {
+    if (patch && k in patch) a[k] = patch[k];
+  }
+  saveApplications();
+  return { ok: true, entry: a };
+});
+
+ipcMain.handle('delete-application', (_, id) => {
+  const i = applications.findIndex(x => x.id === id);
+  if (i >= 0) { applications.splice(i, 1); saveApplications(); }
+  return { ok: true };
+});
+
+ipcMain.handle('is-tracked', (_, url) => applications.some(a => a.url === url));
 
 // Apply the enabled rankers to the results ALREADY on screen (e.g. right after
 // the user turns a ranker on). Rankers run per result-group, so multiple searches
