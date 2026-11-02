@@ -34,15 +34,15 @@ contextBridge.exposeInMainWorld('api', {
   openExtensionsDir: () => ipcRenderer.invoke('open-extensions-dir'),
   rerankResults: () => ipcRenderer.invoke('rerank-results'),
 
-  getApplications: () => ipcRenderer.invoke('get-applications'),
-  addApplication: (data) => ipcRenderer.invoke('add-application', data),
-  updateApplication: (id, patch) => ipcRenderer.invoke('update-application', id, patch),
-  deleteApplication: (id) => ipcRenderer.invoke('delete-application', id),
-  isTracked: (url) => ipcRenderer.invoke('is-tracked', url),
+  // UI extensions: panels + row actions contributed by extensions.
+  getUiExtensions: () => ipcRenderer.invoke('get-ui-extensions'),
+  readExtFile: (id, rel) => ipcRenderer.invoke('read-ext-file', id, rel),
+  extInvoke: (id, method, payload) => ipcRenderer.invoke('ext-invoke', id, method, payload),
 
   onServerLog: (cb) => ipcRenderer.on('server-log', (_, d) => cb(d)),
   onServerStatus: (cb) => ipcRenderer.on('server-status', (_, s) => cb(s)),
   onNewResults: (cb) => ipcRenderer.on('new-results', (_, d) => cb(d)),
   onUpdateStatus: (cb) => ipcRenderer.on('update-status', (_, s) => cb(s)),
+  onExtEvent: (cb) => ipcRenderer.on('ext-event', (_, d) => cb(d)),
   removeAllListeners: (ch) => ipcRenderer.removeAllListeners(ch),
 });

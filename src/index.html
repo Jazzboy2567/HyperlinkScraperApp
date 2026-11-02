@@ -611,27 +611,9 @@ a:hover { text-decoration: underline; }
 .ui-modal-ok.danger { background: rgba(255,120,120,0.16); color: #ff8a8a; border-color: #ff8a8a; }
 
 /* Applications tracker */
-.apps-body { padding: 12px 18px; overflow: auto; }
-.apps-empty { font-size: 12px; color: var(--txt3); padding: 22px 2px; line-height: 1.6; }
-.apps-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.apps-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--txt3); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg1); z-index: 1; }
-.apps-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); color: var(--txt2); vertical-align: top; }
-.apps-table tr:hover td { background: var(--bg2); }
-.apps-pos { color: var(--txt); font-weight: 600; }
-.apps-company { color: var(--txt2); }
-.apps-link { color: var(--acc3); font-size: 11px; cursor: pointer; }
-.apps-link:hover { text-decoration: underline; }
-.apps-notes { width: 100%; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--txt2); font-family: var(--font-sans); font-size: 11px; padding: 3px 5px; resize: vertical; min-height: 24px; box-sizing: border-box; }
-.apps-notes:hover { border-color: var(--line); }
-.apps-notes:focus { border-color: var(--line2); background: var(--bg1); outline: none; }
-.apps-date { background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--txt2); font-family: var(--font-mono); font-size: 11px; padding: 3px 4px; }
-.apps-date:hover { border-color: var(--line); } .apps-date:focus { border-color: var(--line2); outline: none; }
-.apps-status { font-size: 11px; border-radius: 4px; padding: 3px 6px; border: 1px solid var(--line); background: var(--bg3); cursor: pointer; font-weight: 600; }
-.apps-status.status-applied { color: var(--acc3); } .apps-status.status-heard_back { color: var(--acc); }
-.apps-status.status-interview { color: #c79bff; } .apps-status.status-offer { color: var(--acc4); } .apps-status.status-rejected { color: var(--txt3); }
-.apps-del { border: none; background: transparent; color: var(--txt3); cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px; }
-.apps-del:hover { background: rgba(255,120,120,0.16); color: #ff8a8a; }
-.link-track-btn { border: 1px solid var(--line); background: transparent; color: var(--txt3); font-size: 10px; padding: 2px 7px; border-radius: 4px; cursor: pointer; margin-right: 6px; white-space: nowrap; }
+/* Container a panel extension renders its UI into (fills the panel, scrolls). */
+.ext-panel-body { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow: hidden; }
+.link-track-btn { border: 1px solid var(--line); background: transparent; color: var(--txt3); font-size: 9px; font-family: var(--font-mono); padding: 2px 7px; border-radius: 3px; cursor: pointer; margin-right: 6px; white-space: nowrap; align-self: center; flex-shrink: 0; }
 .link-track-btn:hover { border-color: var(--acc4); color: var(--acc4); }
 .link-track-btn.tracked { border-color: var(--acc4); color: var(--acc4); cursor: default; }
 .ext-card:hover { border-color: var(--line2); }
@@ -759,9 +741,8 @@ a:hover { text-decoration: underline; }
     <button class="nav-item" data-panel="panel-archive" title="Archive">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
     </button>
-    <button class="nav-item" data-panel="panel-applications" title="Applications">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
-    </button>
+    <!-- Panel extensions inject their sidebar buttons here -->
+    <div id="extNavItems" style="display:contents;"></div>
     <button class="nav-item" data-panel="panel-extensions" title="Extensions">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.7 2.7 0 1 1 0 5.4H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.7 2.7 0 1 1 5.4 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg>
       <span class="nav-badge update" id="extDot" style="display:none;"></span>
@@ -869,17 +850,8 @@ a:hover { text-decoration: underline; }
       </div>
     </div>
 
-    <!-- APPLICATIONS PANEL -->
-    <div class="panel" id="panel-applications">
-      <div class="panel-head">
-        <span class="panel-title">APPLICATIONS</span>
-        <span class="panel-sub" id="appsCount"></span>
-        <div class="panel-head-right">
-          <button class="btn" id="appsExportBtn" onclick="exportApplicationsCsv()">Export CSV</button>
-        </div>
-      </div>
-      <div class="apps-body" id="appsBody"></div>
-    </div>
+    <!-- Panel extensions inject their panels here -->
+    <div id="extPanels" style="display:contents;"></div>
 
     <!-- EXTENSIONS PANEL -->
     <div class="panel" id="panel-extensions">
@@ -1301,6 +1273,7 @@ async function renderExtensions() {
 
 async function toggleExtension(id, on) {
   try { await api.setExtensionEnabled(id, on); } catch (e) { uiModal.alert('Could not toggle: ' + e.message); return; }
+  await loadUiExtensions();   // mount/unmount its panel + row actions
   await applyExtensionsToResults();
 }
 
@@ -1310,11 +1283,14 @@ async function deleteExtension(id, name) {
     const r = await api.deleteExtension(id);
     if (!r.ok) { uiModal.alert(r.message || 'Could not delete.'); return; }
   } catch (e) { uiModal.alert('Delete error: ' + e.message); return; }
-  renderExtensions();   // just refresh the cards — deleting doesn't require a re-rank
+  await loadUiExtensions();   // tear down its panel + row actions if it had any
+  renderExtensions();         // refresh the cards — deleting doesn't require a re-rank
+  renderResults();            // drop its row-action buttons from results
 }
 
 async function reloadExtensions() {
   try { await api.reloadExtensions(); } catch {}
+  await loadUiExtensions();
   await applyExtensionsToResults();
 }
 
@@ -1339,83 +1315,174 @@ async function openExtensionsDir() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// APPLICATIONS TRACKER
+// UI EXTENSIONS  —  panels + row actions contributed by extensions
 // ═══════════════════════════════════════════════════════════════════
-let trackedUrls = new Set();   // urls already in the tracker (for the Track buttons)
-const APP_STATUSES = [
-  ['applied', 'Applied'], ['heard_back', 'Heard back'], ['interview', 'Interview'],
-  ['offer', 'Offer'], ['rejected', 'Rejected'],
-];
-const APP_STATUS_LABEL = Object.fromEntries(APP_STATUSES);
+// A "panel" extension ships a panel.js (and optional panel.css) that runs in this
+// window and calls LW.registerPanel(id, { render }). The core mounts a sidebar button
+// + panel for it, routes its backend calls through api.extInvoke, and lets it add
+// buttons to each result row (rowActions). This is what makes a whole feature (like the
+// Applications tracker) installable and deletable like any other extension.
 
-async function refreshTrackedUrls() {
-  try { trackedUrls = new Set((await api.getApplications()).map(a => a.url)); } catch { trackedUrls = new Set(); }
+let uiExtensions = [];                 // metadata from main (panels + rowActions)
+const extPanelRegistry = {};           // id -> { render } supplied by the extension's panel.js
+const extPanelMounted = {};            // id -> bool (render has run at least once)
+let extRowActions = [];                // [{ extId, action }] flattened across enabled extensions
+const extActiveUrls = {};              // `${extId}:${actionId}` -> Set(urls) that are "active"
+const defaultExtIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>`;
+
+// Host API exposed to extension panel code (it runs in this page's context).
+window.LW = {
+  registerPanel(id, impl) { extPanelRegistry[id] = impl || {}; },
+  esc,
+  openLink,
+  download(filename, content, type) {
+    const blob = new Blob([content], { type: type || 'text/plain' });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(href), 1000);
+  },
+};
+
+// Per-extension context handed to its render().
+function extCtx(id) {
+  return {
+    id,
+    invoke: async (method, payload) => {
+      const r = await api.extInvoke(id, method, payload);
+      if (!r || !r.ok) throw new Error((r && r.message) || 'extension call failed');
+      return r.result;
+    },
+    esc, openLink,
+    confirm: (msg, opts) => uiModal.confirm(msg, opts),
+    alert: (msg, opts) => uiModal.alert(msg, opts),
+    download: window.LW.download,
+    // Re-query row-action state and repaint result rows (e.g. after the panel changes data).
+    refreshRows: async () => { await refreshExtRowState(); renderResults(); renderArchive(); },
+  };
 }
 
-async function renderApplications() {
-  const body = document.getElementById('appsBody');
-  if (!body) return;
-  let apps = [];
-  try { apps = await api.getApplications(); } catch { apps = []; }
-  trackedUrls = new Set(apps.map(a => a.url));
-  const countEl = document.getElementById('appsCount');
-  if (countEl) countEl.textContent = apps.length ? `${apps.length} tracked` : '';
-  if (!apps.length) {
-    body.innerHTML = `<div class="apps-empty">No applications tracked yet.<br>Open <b>Results</b> and click <b>+ Track</b> on a job to add it here — its link, company and title fill in automatically.</div>`;
-    return;
+// Switch to a panel (shared by static nav items and injected extension ones).
+function switchToPanel(btn) {
+  flushDirty();
+  if (selectedUrlId) saveUrlEntryNow(selectedUrlId, true);
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const panel = document.getElementById(btn.dataset.panel);
+  if (panel) panel.classList.add('active');
+  if (btn.dataset.panel === 'panel-extensions') renderExtensions();
+  if (btn.dataset.ext) renderExtPanel(btn.dataset.ext);
+}
+
+function renderExtPanel(id) {
+  const impl = extPanelRegistry[id];
+  const body = document.getElementById('panel-ext-' + id + '-body');
+  if (!impl || !body || typeof impl.render !== 'function') return;
+  try { impl.render(body, extCtx(id)); extPanelMounted[id] = true; }
+  catch (e) { body.innerHTML = '<div style="padding:14px;color:#e58;font-size:12px;">Panel error: ' + esc(e.message) + '</div>'; }
+}
+
+// (Re)mount every enabled panel extension: sidebar button, panel, CSS, and code.
+async function loadUiExtensions() {
+  try { uiExtensions = await api.getUiExtensions(); } catch { uiExtensions = []; }
+
+  // tear down any previously-mounted extension UI (reload safety)
+  const navBox = document.getElementById('extNavItems');
+  const panelBox = document.getElementById('extPanels');
+  navBox.innerHTML = '';
+  panelBox.innerHTML = '';
+  document.querySelectorAll('style[data-ext], script[data-ext]').forEach(n => n.remove());
+  Object.keys(extPanelRegistry).forEach(k => delete extPanelRegistry[k]);
+  Object.keys(extPanelMounted).forEach(k => delete extPanelMounted[k]);
+
+  for (const ext of uiExtensions) {
+    if (!ext.panel) continue;
+    const panelId = 'panel-ext-' + ext.id;
+
+    const btn = document.createElement('button');
+    btn.className = 'nav-item';
+    btn.dataset.panel = panelId;
+    btn.dataset.ext = ext.id;
+    btn.title = ext.panel.title;
+    btn.innerHTML = ext.panel.icon || defaultExtIcon;
+    btn.addEventListener('click', () => switchToPanel(btn));
+    navBox.appendChild(btn);
+
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.id = panelId;
+    panel.innerHTML = `<div class="ext-panel-body" id="${panelId}-body"></div>`;
+    panelBox.appendChild(panel);
+
+    if (ext.panel.css) {
+      try {
+        const r = await api.readExtFile(ext.id, ext.panel.css);
+        if (r && r.ok) { const st = document.createElement('style'); st.dataset.ext = ext.id; st.textContent = r.content; document.head.appendChild(st); }
+      } catch {}
+    }
+    try {
+      const r = await api.readExtFile(ext.id, ext.panel.entry);
+      if (r && r.ok) { const sc = document.createElement('script'); sc.dataset.ext = ext.id; sc.textContent = r.content; document.body.appendChild(sc); }
+      else throw new Error((r && r.message) || 'could not read panel entry');
+    } catch (e) { console.error('ext panel load failed:', ext.id, e); }
   }
-  const opts = sel => APP_STATUSES.map(([v, l]) => `<option value="${v}"${v === sel ? ' selected' : ''}>${l}</option>`).join('');
-  const rows = apps.map(a => {
-    const u = encodeURIComponent(a.url);
-    return `<tr>
-      <td><div class="apps-pos">${esc(a.title || 'Untitled')}</div></td>
-      <td class="apps-company">${esc(a.company || '')}</td>
-      <td><select class="apps-status status-${esc(a.status)}" onchange="updateApp('${a.id}','status',this.value); this.className='apps-status status-'+this.value;">${opts(a.status)}</select></td>
-      <td><input type="date" class="apps-date" value="${esc(a.dateApplied || '')}" onchange="updateApp('${a.id}','dateApplied',this.value)"></td>
-      <td><span class="apps-link" onclick="openLink(decodeURIComponent('${u}'))" title="${esc(a.url)}">open ↗</span></td>
-      <td><textarea class="apps-notes" rows="1" placeholder="notes…" onblur="updateApp('${a.id}','notes',this.value)">${esc(a.notes || '')}</textarea></td>
-      <td><button class="apps-del" title="Remove" onclick="removeApp('${a.id}', decodeURIComponent('${encodeURIComponent(a.title || '')}'))">✕</button></td>
-    </tr>`;
+
+  rebuildExtRowActions();
+  await refreshExtRowState();
+
+  // If the panel that was open belonged to an extension that's now gone, fall back to Results.
+  if (!document.querySelector('.panel.active')) {
+    const resBtn = document.querySelector('.nav-item[data-panel="panel-results"]');
+    if (resBtn) switchToPanel(resBtn);
+  }
+}
+
+// ── Result-row actions (e.g. the Applications "+ Track" button) ────────────────
+function rebuildExtRowActions() {
+  extRowActions = [];
+  for (const ext of uiExtensions) {
+    for (const a of (ext.rowActions || [])) if (a && a.method) extRowActions.push({ extId: ext.id, action: a });
+  }
+}
+async function refreshExtRowState() {
+  for (const { extId, action } of extRowActions) {
+    if (!action.activeUrlsMethod) continue;
+    try {
+      const r = await api.extInvoke(extId, action.activeUrlsMethod);
+      const urls = (r && r.ok && Array.isArray(r.result)) ? r.result : [];
+      extActiveUrls[`${extId}:${action.id}`] = new Set(urls);
+    } catch { extActiveUrls[`${extId}:${action.id}`] = new Set(); }
+  }
+}
+function rowActionsHtml(link) {
+  if (!extRowActions.length) return '';
+  const u = encodeURIComponent(link.url), t = encodeURIComponent(link.title || '');
+  return extRowActions.map(({ extId, action }) => {
+    const active = (extActiveUrls[`${extId}:${action.id}`] || new Set()).has(link.url);
+    if (active) return `<button class="link-track-btn tracked" title="${esc(action.activeTitle || 'Added')}">${esc(action.activeLabel || '✓')}</button>`;
+    return `<button class="link-track-btn" title="${esc(action.title || action.label)}" onclick="runRowAction('${esc(extId)}','${esc(action.id)}','${esc(action.method)}',decodeURIComponent('${u}'),decodeURIComponent('${t}'),this)">${esc(action.label)}</button>`;
   }).join('');
-  body.innerHTML = `<table class="apps-table">
-    <thead><tr><th>Position</th><th>Company</th><th>Status</th><th>Applied</th><th>Link</th><th>Notes</th><th></th></tr></thead>
-    <tbody>${rows}</tbody></table>`;
 }
-
-async function updateApp(id, key, value) {
-  try { await api.updateApplication(id, { [key]: value }); }
-  catch (e) { uiModal.alert('Could not save: ' + e.message); }
-}
-
-async function removeApp(id, title) {
-  if (!(await uiModal.confirm(`Remove "${title || 'this application'}" from your tracker?`, { title: 'Remove application', okText: 'Remove', danger: true }))) return;
-  try { await api.deleteApplication(id); } catch (e) { uiModal.alert('Could not remove: ' + e.message); return; }
-  await refreshTrackedUrls();
-  renderApplications();
-}
-
-async function trackApplication(url, title, btn) {
+async function runRowAction(extId, actionId, method, url, title, btn) {
   try {
-    const r = await api.addApplication({ url, title });
-    if (!r.ok) { uiModal.alert(r.message || 'Could not track.'); return; }
-    trackedUrls.add(url);
-    if (btn) { btn.classList.add('tracked'); btn.textContent = '✓ Tracked'; btn.onclick = null; }
-  } catch (e) { uiModal.alert('Track error: ' + e.message); }
+    const r = await api.extInvoke(extId, method, { url, title });
+    if (!r || !r.ok) { uiModal.alert((r && r.message) || 'Action failed.'); return; }
+    (extActiveUrls[`${extId}:${actionId}`] = extActiveUrls[`${extId}:${actionId}`] || new Set()).add(url);
+    const found = extRowActions.find(x => x.extId === extId && x.action.id === actionId);
+    const action = found ? found.action : {};
+    if (btn) { btn.classList.add('tracked'); btn.textContent = action.activeLabel || '✓'; btn.onclick = null; btn.title = action.activeTitle || 'Added'; }
+    // If that extension's panel is open, let it refresh.
+    if (extPanelMounted[extId]) renderExtPanel(extId);
+  } catch (e) { uiModal.alert('Action error: ' + e.message); }
 }
 
-function csvCell(s) { s = String(s == null ? '' : s); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
-async function exportApplicationsCsv() {
-  let apps = [];
-  try { apps = await api.getApplications(); } catch {}
-  if (!apps.length) { uiModal.alert('No applications to export yet.'); return; }
-  const lines = [['Position', 'Company', 'Status', 'Applied', 'Link', 'Notes'].join(',')];
-  for (const a of apps) lines.push([a.title, a.company, APP_STATUS_LABEL[a.status] || a.status, a.dateApplied, a.url, a.notes].map(csvCell).join(','));
-  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv' });
-  const href = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = href; link.download = 'applications.csv';
-  document.body.appendChild(link); link.click(); document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(href), 1000);
+// Extensions can ask the app to refresh (e.g. after their data changed).
+function handleExtEvent(d) {
+  if (!d) return;
+  if (d.event === 'refresh-rows') { refreshExtRowState().then(() => { renderResults(); renderArchive(); }); }
+  else if (d.event === 'refresh-panel' && extPanelMounted[d.id]) renderExtPanel(d.id);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1424,7 +1491,7 @@ async function exportApplicationsCsv() {
 async function init() {
   config = await api.getConfig();
   results = await api.getResults();
-  await refreshTrackedUrls();   // so result rows know which jobs are already tracked
+  await loadUiExtensions();   // mount panel extensions + row actions before first render
 
   applySettingsToUI();
   buildUrlList();
@@ -1457,18 +1524,11 @@ async function init() {
 
   api.onUpdateStatus(applyUpdateStatus);
   api.getUpdateStatus().then(applyUpdateStatus).catch(() => {});
+  api.onExtEvent(handleExtEvent);
 
-  document.querySelectorAll('.nav-item[data-panel]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      flushDirty();
-      if (selectedUrlId) saveUrlEntryNow(selectedUrlId, true);
-      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById(btn.dataset.panel).classList.add('active');
-      if (btn.dataset.panel === 'panel-extensions') renderExtensions();
-      if (btn.dataset.panel === 'panel-applications') renderApplications();
-    });
+  // Static nav items only — extension nav items get their own handler in loadUiExtensions.
+  document.querySelectorAll('.nav-item[data-panel]:not([data-ext])').forEach(btn => {
+    btn.addEventListener('click', () => switchToPanel(btn));
   });
 
   document.querySelectorAll('.sort-tab[data-sort]').forEach(t => {
@@ -1738,11 +1798,7 @@ function renderRunGroup(entry, ns, linksOverride) {
     html += `<div class="link-url" onclick="openLink('${esc(link.url)}')" title="${esc(link.url)}">${esc(link.url)}</div>`;
     html += badgesHtml(link);
     html += `</div>`;
-    const tracked = trackedUrls.has(link.url);
-    const u = encodeURIComponent(link.url), t = encodeURIComponent(link.title || '');
-    html += tracked
-      ? `<button class="link-track-btn tracked" title="Already in your Applications">✓ Tracked</button>`
-      : `<button class="link-track-btn" title="Add to your Applications tracker" onclick="trackApplication(decodeURIComponent('${u}'), decodeURIComponent('${t}'), this)">+ Track</button>`;
+    html += rowActionsHtml(link);   // buttons contributed by panel extensions (e.g. "+ Track")
     html += `<button class="link-open-btn" onclick="openLink('${esc(link.url)}')">open ↗</button>`;
     html += `</div>`;
   });
