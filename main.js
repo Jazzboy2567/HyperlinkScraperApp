@@ -36,7 +36,7 @@ let mainWindow = null;
 let scraperProcess = null;
 let serverReady = false;
 let schedulerTimers = {};
-let seenLinks = new Set();
+let seenLinks = new Map();   // normalized url -> first-seen epoch ms (for age-based expiry)
 let results = [];
 let config = {};
 let liveScraperPort = null;
@@ -69,7 +69,8 @@ function loadAll() {
   config = loadJSON(CONFIG_PATH, { notifyOnFail: false, urls: [] });
   config.scraperPath = resolveScraper();   // main project if present, else bundled
   results = loadJSON(RESULTS_PATH, []);
-  seenLinks = new Set(loadJSON(SEEN_PATH, []));
+  seenLinks = loadSeenLinks();
+  pruneSeenLinks();
 }
 
 function saveConfig() {
@@ -78,14 +79,52 @@ function saveConfig() {
   saveJSON(CONFIG_PATH, toSave);
 }
 function saveResults() { saveJSON(RESULTS_PATH, results); }
-function saveSeenLinks() { saveJSON(SEEN_PATH, [...seenLinks]); }
+// Persisted as { url: firstSeenEpochMs } so entries can age out. Written atomically
+// by saveJSON; loaded by loadSeenLinks (which migrates the old string[] format).
+function saveSeenLinks() { saveJSON(SEEN_PATH, Object.fromEntries(seenLinks)); }
+
+// Default: drop seen-links older than this many days so genuinely re-posted jobs can
+// resurface and the set can't grow forever. Set config.seenMaxAgeDays to 0 (or null)
+// to keep the old "remember forever" behavior.
+const SEEN_MAX_AGE_DEFAULT = 60;
+
+// Load the seen-set, migrating the legacy string[] file to the timestamped map. Legacy
+// entries get first-seen = now (their real age is unknown), so the one-time migration
+// doesn't instantly expire ~15k URLs and flood the feed — they age out from here.
+function loadSeenLinks() {
+  const raw = loadJSON(SEEN_PATH, []);
+  const map = new Map();
+  const now = Date.now();
+  if (Array.isArray(raw)) {
+    for (const u of raw) if (typeof u === 'string') map.set(u, now);
+  } else if (raw && typeof raw === 'object') {
+    for (const [u, ts] of Object.entries(raw)) map.set(u, Number(ts) || now);
+  }
+  return map;
+}
+
+// Remove seen-links past the configured max age. Safe to call often (a Map scan).
+function pruneSeenLinks() {
+  const days = Number(config.seenMaxAgeDays ?? SEEN_MAX_AGE_DEFAULT);
+  if (!days || days <= 0) return 0;   // expiry disabled
+  const cutoff = Date.now() - days * 86400000;
+  let removed = 0;
+  for (const [u, ts] of seenLinks) { if (ts < cutoff) { seenLinks.delete(u); removed++; } }
+  if (removed > 0) {
+    saveSeenLinks();
+    sendLog('info', `Seen-links: expired ${removed} entr${removed === 1 ? 'y' : 'ies'} older than ${days}d (${seenLinks.size} remain)`);
+  }
+  return removed;
+}
+
 // Commit a batch of normalized URLs to the seen-set. Callers run this only AFTER the
 // run's result has been durably stored, so a failure mid-run never marks a job seen
 // without ever showing it (it simply reappears on the next run).
 function commitSeenLinks(urls) {
   if (!Array.isArray(urls) || !urls.length) return;
+  const now = Date.now();
   let added = 0;
-  for (const u of urls) { if (!seenLinks.has(u)) { seenLinks.add(u); added++; } }
+  for (const u of urls) { if (!seenLinks.has(u)) { seenLinks.set(u, now); added++; } }
   if (added > 0) saveSeenLinks();
 }
 
@@ -607,7 +646,10 @@ async function scrapeUrl(urlEntry, opts = {}) {
     ranked = newLinks;
   }
 
-  return { links: ranked, total: filtered.length, urlEntry, newUrls };
+  // Per-run coverage (which pagination engine ran, how many pages, whether the run
+  // was throttled mid-way). Surfaced in the UI so a thin/degraded scrape is visible.
+  const coverage = (data.stats && data.stats.coverage) || null;
+  return { links: ranked, total: filtered.length, urlEntry, newUrls, coverage };
 }
 
 // ── Scheduler ──────────────────────────────────────────────────────────────
@@ -708,6 +750,7 @@ async function runScheduled(urlEntry) {
   }
   scrapeInProgress[urlEntry.id] = true;
   try {
+    pruneSeenLinks();   // age out stale entries so re-posted jobs can resurface
     sendLog('info', `[${urlEntry.nickname || urlEntry.url}] Running scheduled scrape...`);
     const result = await scrapeUrl(urlEntry, { affectMemory: true, isTest: false });
     if (!result) return false;
@@ -721,6 +764,7 @@ async function runScheduled(urlEntry) {
       urlNickname: urlEntry.nickname || urlEntry.url,
       timestamp: new Date().toISOString(),
       links: result.links.map(toLinkEntry),
+      coverage: result.coverage || null,
       isTest: false
     };
     results.unshift(entry);
@@ -782,6 +826,7 @@ ipcMain.handle('run-test', async (_, urlEntry, opts) => {
     urlNickname: (urlEntry.nickname || urlEntry.url) + ' [TEST]',
     timestamp: new Date().toISOString(),
     links: result.links.map(toLinkEntry),
+    coverage: result.coverage || null,
     isTest: true,
     affectedMemory: affectMemory
   };
@@ -804,7 +849,7 @@ ipcMain.handle('run-now', async (_, urlId) => {
 });
 
 ipcMain.handle('clear-seen-links', () => {
-  seenLinks = new Set();
+  seenLinks = new Map();
   saveSeenLinks();
   return true;
 });
